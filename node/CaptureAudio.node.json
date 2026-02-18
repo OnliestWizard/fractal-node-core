@@ -1,0 +1,15 @@
+{
+  "id": "capture_audio",
+  "intent": "capture spoken input from user",
+  "inputs": {
+    "duration_ms": { "type": "number", "required": false }
+  },
+  "outputs": {
+    "audio_blob": { "type": "binary" }
+  },
+  "sideEffects": ["microphone", "hardware_access"],
+  "constraints": {
+    "offlineCapable": true,
+    "realtime": true
+  }
+}
