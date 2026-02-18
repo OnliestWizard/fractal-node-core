@@ -1,0 +1,13 @@
+{
+  "graphId": "capture_and_transcribe",
+  "nodes": [
+    { "nodeId": "capture_audio" },
+    { "nodeId": "transcribe_audio" }
+  ],
+  "edges": [
+    {
+      "from": { "nodeId": "capture_audio", "output": "audio_blob" },
+      "to": { "nodeId": "transcribe_audio", "input": "audio_blob" }
+    }
+  ]
+}
