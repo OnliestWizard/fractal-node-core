@@ -40,6 +40,22 @@ function nodeBody(node: SerializedNode): string {
     ].join('\n')
   }
 
+  if (fx.includes('llm')) {
+    const out = node.outputs[0]?.id ?? 'response'
+    return [
+      `    val client = AnthropicOkHttpClient.builder().build()`,
+      `    val msg = client.messages().create(`,
+      `        MessageCreateParams.builder()`,
+      `            .model(Model.CLAUDE_OPUS_4_8)`,
+      `            .maxTokens(64000)`,
+      `            .addUserMessage(inputs["prompt"] as String)`,
+      `            .build()`,
+      `    )`,
+      `    val ${out} = msg.content().firstOrNull()?.text()?.text() ?: ""`,
+      `    return mapOf("${out}" to ${out})`,
+    ].join('\n')
+  }
+
   return [
     `    // TODO: implement ${node.id}`,
     `    throw NotImplementedError("${node.id}: not implemented")`,

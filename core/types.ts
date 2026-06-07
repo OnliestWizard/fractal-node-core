@@ -17,6 +17,7 @@ export type SideEffect =
   | 'network_access'
   | 'microphone'
   | 'camera'
+  | 'llm'
 
 export interface Port {
   id: PortId

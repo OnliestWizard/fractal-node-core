@@ -42,6 +42,22 @@ function nodeBody(node: SerializedNode): string {
     ].join('\n')
   }
 
+  if (fx.includes('llm')) {
+    return [
+      `  const stream = anthropic.messages.stream({`,
+      `    model: 'claude-opus-4-8',`,
+      `    max_tokens: 64000,`,
+      `    thinking: { type: 'adaptive' },`,
+      `    ...(inputs.system ? { system: inputs.system } : {}),`,
+      `    messages: [{ role: 'user', content: inputs.prompt }],`,
+      `  })`,
+      `  const msg = await stream.finalMessage()`,
+      `  const tb = msg.content.find(b => b.type === 'text')`,
+      `  const response = tb?.text ?? ''`,
+      `  return { response }`,
+    ].join('\n')
+  }
+
   return [
     `  // TODO: implement ${node.id}`,
     `  throw new Error('${node.id}: not implemented')`,

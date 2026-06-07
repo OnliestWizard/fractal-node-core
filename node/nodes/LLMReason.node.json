@@ -1,0 +1,13 @@
+{
+  "id": "llm_reason",
+  "description": "Send a prompt to an LLM and get a text response",
+  "inputs": [
+    { "id": "prompt", "type": "string" },
+    { "id": "system", "type": "string", "optional": true }
+  ],
+  "outputs": [
+    { "id": "response", "type": "string" }
+  ],
+  "sideEffects": ["llm", "network_access"],
+  "constraints": { "offlineCapable": false }
+}

@@ -7,12 +7,12 @@ A graph-based execution engine where nodes are connected by typed edges and grap
 
 ---
 
-## Current state: WORKING — test suite live, registry validation in
+## Current state: WORKING — llm_reason node built, all tests passing
 
 ```
 npx tsx run.ts       # 3-level demo with execution tracing
 npx tsx emit.ts      # emits JS + Kotlin from CaptureAndTranscribe.graph.json
-npm test             # vitest run (5 tests, 3 files)
+npm test             # vitest run (9 tests, 4 files)
 npx tsc --noEmit     # type check (zero errors)
 ```
 
@@ -23,7 +23,7 @@ npx tsc --noEmit     # type check (zero errors)
 | Type | Purpose |
 |---|---|
 | `ValueType` | All allowed port value types (`string`, `number`, `boolean`, `object`, `audio`, `image`, `void`, `any`) |
-| `SideEffect` | Platform capabilities a node requires (`microphone`, `camera`, `network_access`, etc.) |
+| `SideEffect` | Platform capabilities a node requires (`microphone`, `camera`, `network_access`, `filesystem_write`, `hardware_access`, `llm`) |
 | `Port` | `{ id, type, optional? }` |
 | `Edge` | `{ from: { nodeId, portId }, to: { nodeId, portId } }` |
 | `IExecutionGraph` | Interface for graph (avoids circular import with `NodeDefinition`) |
@@ -67,6 +67,16 @@ Kotlin: `Sanitize.kt`, `Pipeline.kt`, `Main.kt` — same structure, same package
 | `tests/graphExecution.test.ts` | `emitGraphJS` preserves topo order in output |
 | `tests/roundTrip.test.ts` | graph emits to both JS and Kotlin |
 | `tests/registry.test.ts` | `validateRegistry` returns correct missing IDs; `deserialize` warns / stays silent |
+| `tests/llm.test.ts` | `llm_reason` returns text, passes/omits system prompt, handles empty content |
+
+---
+
+## LLM node (`llm_reason`)
+- **Contract**: `node/nodes/LLMReason.node.json` — inputs: `prompt` (string), `system` (string, optional); output: `response` (string); sideEffects: `["llm", "network_access"]`
+- **Implementation**: `node/capabilities/llm.ts` — wraps Anthropic SDK, adaptive thinking, streaming via `.stream().finalMessage()`
+- **JS emitter**: `sideEffects: ["llm"]` branch in `emitGraphJS.ts` emits Anthropic streaming call inline
+- **Kotlin emitter**: same branch in `emitKotlin.ts` emits `AnthropicOkHttpClient` call
+- **Direction**: this is the foundation for agent capabilities — next step is wiring `llm_reason` into a graph and building agent loop primitives (see `Gpt.md`)
 
 ---
 
