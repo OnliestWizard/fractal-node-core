@@ -87,6 +87,44 @@ Input: `"  Hello World  "` → Final: `"[clean] hello world"`
 
 ---
 
+### Session 4 — Emitters
+- `core/topo.ts` — extracted shared `topologicalSort(nodeIds, edges)` utility
+- `core/executor.ts` — updated to use shared topo sort (no behaviour change)
+- `node/nodes/CaptureAudio.node.json` — updated to unified `Port[]` format
+- `node/nodes/TranscribeAudio.node.json` — updated to unified `Port[]` format
+- `node/graphs/CaptureAndTranscribe.graph.json` — self-contained `SerializedGraph` (no separate NodeRef, edge format unified)
+- `emitters/web/emitGraphJS.ts` — real emitter: topo sorts graph, emits one async function per node (body driven by `sideEffects`), emits `run()` that threads values between nodes. Recursive for subgraph nodes (inner functions get `__`-namespaced IDs)
+- `emitters/android/emitKotlin.ts` — same structure, Kotlin `suspend fun` syntax
+- `tsconfig.json` — added `resolveJsonModule: true`
+- `emit.ts` — demo: loads `CaptureAndTranscribe.graph.json`, emits both JS and Kotlin
+
+JS output (from graph JSON, no code written by hand):
+```javascript
+async function capture_audio(inputs) {
+  const stream = await navigator.mediaDevices.getUserMedia({ audio: true })
+  const audio_blob = await recordAudio(stream)
+  return { audio_blob }
+}
+async function transcribe_audio(inputs) {
+  // TODO: implement transcribe_audio
+  throw new Error('transcribe_audio: not implemented')
+}
+async function run(inputs = {}) {
+  const capture_audio_out = await capture_audio({})
+  const transcribe_audio_out = await transcribe_audio({ audio_blob: capture_audio_out.audio_blob })
+  return transcribe_audio_out
+}
+```
+
+**Key design (updated — hybrid emission):** Subgraph nodes → separate module/file. Leaf nodes → inline in their parent file. Import graph mirrors the node graph exactly. Leaves are `private` in Kotlin. The emitted code structure is navigable the same way the graph is navigable — zoom into `Pipeline.kt` and you see exactly what `pipeline` contains, nothing more.
+
+JS output (3-level graph → 3 files):
+- `sanitize.js` — `trim` + `lowercase` inline, exports `sanitize()`
+- `pipeline.js` — imports `sanitize`, `tag` inline, exports `pipeline()`
+- `index.js` — imports `pipeline`, `source` inline, exports `run()`
+
+Kotlin output: `Sanitize.kt`, `Pipeline.kt`, `Main.kt` — same structure, same package (no imports needed between files).
+
 ### Session 3 — Serialisation
 - `core/serializer.ts` — new file:
   - `SerializedNode` — `NodeContract` + optional recursive `subgraph?: SerializedGraph`

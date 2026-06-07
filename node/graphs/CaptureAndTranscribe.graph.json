@@ -1,13 +1,26 @@
 {
-  "graphId": "capture_and_transcribe",
   "nodes": [
-    { "nodeId": "capture_audio" },
-    { "nodeId": "transcribe_audio" }
+    {
+      "id": "capture_audio",
+      "description": "capture spoken input from the user",
+      "inputs": [{ "id": "duration_ms", "type": "number", "optional": true }],
+      "outputs": [{ "id": "audio_blob", "type": "audio" }],
+      "sideEffects": ["microphone", "hardware_access"],
+      "constraints": { "offlineCapable": true, "realtime": true }
+    },
+    {
+      "id": "transcribe_audio",
+      "description": "convert speech audio into text",
+      "inputs": [{ "id": "audio_blob", "type": "audio" }],
+      "outputs": [{ "id": "text", "type": "string" }],
+      "sideEffects": [],
+      "constraints": { "offlineCapable": true }
+    }
   ],
   "edges": [
     {
-      "from": { "nodeId": "capture_audio", "output": "audio_blob" },
-      "to": { "nodeId": "transcribe_audio", "input": "audio_blob" }
+      "from": { "nodeId": "capture_audio",  "portId": "audio_blob" },
+      "to":   { "nodeId": "transcribe_audio", "portId": "audio_blob" }
     }
   ]
 }

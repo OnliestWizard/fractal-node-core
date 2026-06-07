@@ -1,12 +1,12 @@
 {
   "id": "transcribe_audio",
-  "intent": "convert speech audio into text",
-  "inputs": {
-    "audio_blob": { "type": "binary", "required": true }
-  },
-  "outputs": {
-    "text": { "type": "string" }
-  },
+  "description": "convert speech audio into text",
+  "inputs": [
+    { "id": "audio_blob", "type": "audio" }
+  ],
+  "outputs": [
+    { "id": "text", "type": "string" }
+  ],
   "sideEffects": [],
   "constraints": {
     "offlineCapable": true

@@ -1,12 +1,12 @@
 {
   "id": "capture_audio",
-  "intent": "capture spoken input from user",
-  "inputs": {
-    "duration_ms": { "type": "number", "required": false }
-  },
-  "outputs": {
-    "audio_blob": { "type": "binary" }
-  },
+  "description": "capture spoken input from the user",
+  "inputs": [
+    { "id": "duration_ms", "type": "number", "optional": true }
+  ],
+  "outputs": [
+    { "id": "audio_blob", "type": "audio" }
+  ],
   "sideEffects": ["microphone", "hardware_access"],
   "constraints": {
     "offlineCapable": true,
