@@ -29,6 +29,24 @@ const REGISTRY = {
   passthrough,
 }
 
+// ── Graph catalog ────────────────────────────────────────────────────────────
+
+import researchAgentGraph    from './node/graphs/ResearchAgent.graph.json'
+import memoryOrFetchGraph    from './node/graphs/MemoryOrFetch.graph.json'
+import refineLoopGraph       from './node/graphs/RefineLoop.graph.json'
+import toolAgentGraph        from './node/graphs/ToolAgent.graph.json'
+import researchRememberGraph from './node/graphs/ResearchAndRemember.graph.json'
+import recallGraph           from './node/graphs/Recall.graph.json'
+
+const GRAPHS = [
+  { name: 'ResearchAgent',        graph: researchAgentGraph    },
+  { name: 'MemoryOrFetch',        graph: memoryOrFetchGraph    },
+  { name: 'RefineLoop',           graph: refineLoopGraph       },
+  { name: 'ToolAgent',            graph: toolAgentGraph        },
+  { name: 'ResearchAndRemember',  graph: researchRememberGraph },
+  { name: 'Recall',               graph: recallGraph           },
+]
+
 // ── Node catalog ──────────────────────────────────────────────────────────────
 
 import httpFetchContract    from './node/nodes/HttpFetch.node.json'
@@ -75,6 +93,11 @@ export function createApp() {
   // GET /health
   app.get('/health', (_req, res) => {
     res.json({ ok: true })
+  })
+
+  // GET /graphs
+  app.get('/graphs', (_req, res) => {
+    res.json({ graphs: GRAPHS })
   })
 
   // GET /capabilities
@@ -141,6 +164,44 @@ export function createApp() {
     }
   })
 
+  // POST /run/stream
+  // Body: { graph: SerializedGraph, inputs?: Record<string, any> }
+  // Returns: SSE stream of NodeEvent objects, then a final "done" event with outputs
+  // Error before stream starts: regular JSON 400/422. Error mid-execution: SSE "error" event.
+  app.post('/run/stream', async (req, res) => {
+    const { graph, inputs } = req.body as { graph: SerializedGraph; inputs?: Record<string, any> }
+    if (!graph) return res.status(400).json({ error: 'Missing graph' })
+
+    const validationErrors = validateGraph(graph)
+    if (validationErrors.length) {
+      return res.status(422).json({ error: 'Invalid graph', errors: validationErrors })
+    }
+
+    const missing = validateRegistry(graph, REGISTRY)
+    if (missing.length) {
+      return res.status(422).json({ error: `Missing registry entries: ${missing.join(', ')}` })
+    }
+
+    res.setHeader('Content-Type', 'text/event-stream')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.setHeader('Connection', 'keep-alive')
+    res.flushHeaders()
+
+    const send = (event: string, data: unknown) => {
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+    }
+
+    try {
+      const execGraph = deserialize(graph, REGISTRY)
+      const values = await runGraph(execGraph, {}, (event) => send('node', event), inputs)
+      send('done', { outputs: extractOutputs(graph, values) })
+    } catch (err: any) {
+      send('error', { error: err.message ?? 'Execution failed' })
+    } finally {
+      res.end()
+    }
+  })
+
   return app
 }
 
@@ -156,6 +217,7 @@ async function main() {
     console.log(`  POST /validate`)
     console.log(`  POST /emit/:platform   (js | kotlin | swift)`)
     console.log(`  POST /run`)
+    console.log(`  POST /run/stream       (SSE)`)
   })
 }
 

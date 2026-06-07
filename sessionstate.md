@@ -7,7 +7,7 @@ A graph-based execution engine where nodes are connected by typed edges and grap
 
 ---
 
-## Current state: WORKING — 125 tests passing, 15 test files
+## Current state: WORKING — 135 tests passing, 16 test files
 
 ```
 npx tsx run.ts                                            # 3-level demo with execution tracing
@@ -19,7 +19,7 @@ npx tsx run_memory.ts read "https://..."                  # Recall: read stored 
 npx tsx run_tool_agent.ts "your prompt"                   # ToolAgent: LLM-driven tool-calling loop
 npx tsx run_memory_or_fetch.ts "https://..." "question"   # MemoryOrFetch: cache-hit/miss router demo
 npm run server                                            # start execution server on port 3000
-npm test                                                  # vitest run (113 tests, 14 files)
+npm test                                                  # vitest run (135 tests, 16 files)
 npx tsc --noEmit                                          # type check (zero errors in project code)
 ```
 
@@ -179,6 +179,7 @@ Kotlin: `Sanitize.kt`, `Pipeline.kt`, `Main.kt` — same structure, same package
 | `tests/swift.test.ts` | file naming, URLSession, UserDefaults read/write, loop structure, router dispatch, agent stub, async throws signatures, serialize→emit round-trip |
 | `tests/server.test.ts` | /health, /capabilities shape, /validate valid+invalid graphs, /emit js+kotlin+swift+unknown, /run success+invalid graph+missing leaf+missing body |
 | `tests/telemetry.test.ts` | start/complete/error events, durationMs, depth tracking for subgraphs, parallel fan-out ordering, collectEvents utility |
+| `tests/stream.test.ts` | SSE content-type header, pre-stream 400/422 JSON errors, node events over wire, done event with outputs |
 
 ---
 
@@ -228,9 +229,11 @@ Kotlin: `Sanitize.kt`, `Pipeline.kt`, `Main.kt` — same structure, same package
 | `/capabilities` | GET | Returns `CATALOG` — array of `NodeContract` for all built-in nodes |
 | `/validate` | POST | `{ graph }` → `{ valid, errors }` — runs `validateGraph`, 400 if no graph |
 | `/emit/:platform` | POST | `{ graph }` → `{ files }` — `js`/`kotlin`/`swift`; 400 for unknown platform |
-| `/run` | POST | `{ graph, inputs? }` → `{ outputs }` — validates, checks registry, deserializes, executes |
+| `/run` | POST | `{ graph, inputs?, trace? }` → `{ outputs, events? }` — validates, checks registry, deserializes, executes; `trace: true` includes full event log |
+| `/run/stream` | POST | `{ graph, inputs? }` → SSE stream of `NodeEvent` objects + final `done` event |
 
 `/run` error codes: 400 (missing body), 422 (validation failure or missing registry leaf), 500 (runtime error).
+`/run/stream` pre-stream errors return plain JSON 400/422; mid-execution errors emit an SSE `error` event.
 
 Built-in registry: `http_fetch`, `research_answer`, `draft_writer`, `quality_judge`, `memory_read`, `memory_write`, `passthrough`.
 
@@ -255,6 +258,44 @@ Two utilities in `node/tracer.ts`:
 - `collectEvents()` — returns `{ hook, events[] }` for capturing all events programmatically. Used by `/run?trace=true` server endpoint and tests.
 
 `POST /run` accepts `trace: true` in the request body → returns `{ outputs, events }` with the full event log.
+
+`POST /run/stream` — SSE endpoint. Same body as `/run` (no `trace` flag needed). Streams `NodeEvent` objects as named SSE events in real time, then a final `done` event with outputs. Pre-execution errors (missing graph, invalid graph, missing registry) return plain JSON 400/422 before the stream opens. Mid-execution errors emit an SSE `error` event and close the stream.
+
+```
+event: node
+data: {"type":"start","nodeId":"memory_read","inputs":{"key":"test"},"depth":0}
+
+event: node
+data: {"type":"complete","nodeId":"memory_read","outputs":{"value":"","found":false},"durationMs":7,"depth":0}
+
+event: done
+data: {"outputs":{"value":"","found":false}}
+```
+
+---
+
+## Visual editor (`editor/`)
+
+Separate Vite + React + TypeScript app. Run independently from the execution server.
+
+```
+cd editor && npm install && npm run dev   # starts on http://localhost:5173
+```
+
+Requires the execution server running on port 3000 (`npm run server` from root).
+
+**Features:**
+- Graph dropdown loaded from `GET /graphs` (6 built-in graphs)
+- Auto-layout: topological depth → left-to-right columns, nodes centered vertically per column
+- Custom `FractalNode` component: input handles (left), output handles (right), port type color coding, `loop`/`route`/`agent`/`graph` badges
+- `▶ run` button → `POST /run/stream` SSE → nodes animate in real time
+  - `start` event → node turns yellow
+  - `complete` event → node turns green
+  - `error` event → node turns red
+- Output panel at bottom shows graph outputs after run completes
+- MiniMap, zoom controls, dark theme throughout
+
+**Server addition:** `GET /graphs` endpoint returns all 6 built-in graph JSONs for the editor dropdown.
 
 ---
 
