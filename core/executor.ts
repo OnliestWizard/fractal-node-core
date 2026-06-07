@@ -90,7 +90,7 @@ async function executeGraph(
 
         for (let turn = 0; turn < maxTurns; turn++) {
           const completion = await openai.chat.completions.create({
-            model: 'gpt-4o',
+            model: node.model ?? 'gpt-4o',
             messages,
             tools: toolSchemas,
             tool_choice: 'auto',

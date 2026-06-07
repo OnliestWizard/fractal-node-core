@@ -12,6 +12,7 @@
       "id": "tool_agent",
       "description": "LLM agent that decides which tools to call to answer the prompt",
       "agent": true,
+      "model": "gpt-4o",
       "inputs": [
         { "id": "prompt", "type": "string" },
         { "id": "system", "type": "string", "optional": true }

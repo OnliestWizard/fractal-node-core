@@ -66,6 +66,9 @@ export interface NodeDefinition {
   // When true, runs an LLM-driven tool-calling loop over the declared tools
   agent?: boolean
 
+  // LLM model to use for agent/llm nodes (e.g. 'gpt-4o', 'gpt-4o-mini')
+  model?: string
+
   // Runtime — leaf function, subgraph, router branches, or agent tools (mutually exclusive)
   run?: (inputs: Record<string, any>) => any
   subgraph?: IExecutionGraph

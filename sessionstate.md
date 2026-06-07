@@ -7,7 +7,7 @@ A graph-based execution engine where nodes are connected by typed edges and grap
 
 ---
 
-## Current state: WORKING — 60 tests passing, 11 test files
+## Current state: WORKING — 98 tests passing, 13 test files
 
 ```
 npx tsx run.ts                                            # 3-level demo with execution tracing
@@ -17,9 +17,62 @@ npx tsx run_research.ts "https://..." "your question"     # ResearchAgent: fetch
 npx tsx run_memory.ts write "https://..." "question"      # ResearchAndRemember: fetch + store answer
 npx tsx run_memory.ts read "https://..."                  # Recall: read stored answer by key
 npx tsx run_tool_agent.ts "your prompt"                   # ToolAgent: LLM-driven tool-calling loop
-npm test                                                  # vitest run (60 tests, 11 files)
+npx tsx run_memory_or_fetch.ts "https://..." "question"   # MemoryOrFetch: cache-hit/miss router demo
+npm test                                                  # vitest run (98 tests, 13 files)
 npx tsc --noEmit                                          # type check (zero errors in project code)
 ```
+
+## Confirmed live runs
+- **RefineLoop**: converged in 2 passes — judge caught unmet requirement on pass 1, writer addressed it on pass 2, DONE
+- **run_memory.ts write/read**: fetched Wikipedia Memoization article, answered in one sentence, stored under URL key, recalled correctly on next run
+- **run_tool_agent.ts**: hit OpenAI rate limit before completing (gpt-4o, high call volume) — switch to gpt-4o-mini for testing
+- **run_memory_or_fetch.ts (hit branch)**: Memoization URL already cached from prior run — router correctly picked `"true"` branch (passthrough), returned answer instantly with no network or LLM call
+- **run_memory_or_fetch.ts (miss branch)**: Dynamic Programming URL not cached — router correctly picked `"false"` branch (http_fetch → research_answer → memory_write), hit OpenAI rate limit mid-call; router branch selection itself confirmed working
+
+---
+
+## Graph validation (`core/validator.ts`)
+
+`validateGraph(graph: SerializedGraph): ValidationError[]` — returns typed errors, zero errors on all real graphs.
+
+| Error type | What it catches |
+|---|---|
+| `unknown_node_ref` | Edge references a node ID not in the graph |
+| `unknown_port_ref` | Edge references a port ID not on the node |
+| `type_mismatch` | Incompatible port types on an edge (`any` is always compatible) |
+| `disconnected_input` | Required input port has no incoming edge |
+| `multiple_inputs` | Two or more edges targeting the same input port |
+| `cycle` | DFS cycle detection — returns the exact node IDs forming the cycle |
+
+Recurses into subgraphs and router branches. Tools are leaf nodes (no inner graph to recurse into).
+
+---
+
+## `model` field
+
+`NodeDefinition.model?: string` — flows through `NodeContract` automatically (not omitted). Lets graph JSON declare which LLM model each agent/LLM node uses. Executor uses `node.model ?? 'gpt-4o'` as fallback. `ToolAgent.graph.json` declares `"model": "gpt-4o"`.
+
+---
+
+## Swift emitter (`emitters/swift/emitSwift.ts`)
+
+Third platform target (alongside JS and Kotlin). `emitGraphSwift(graph): EmittedFiles`.
+
+| sideEffect | Swift output |
+|---|---|
+| `network_access` | `URLSession.shared.data(from:)` → `{ body, status }` |
+| `filesystem_write` | `UserDefaults.standard.set(_:forKey:)` |
+| `filesystem_read` | `UserDefaults.standard.dictionary(forKey:)` → `{ value, found }` |
+| `microphone` | `AudioCapture.record()` stub |
+| `camera` | `CameraCapture.captureFrame()` stub |
+| `llm` | `NSError` throw stub |
+| `agent` | `NSError` throw stub |
+
+- File naming: `run` → `Main.swift`, subgraph/branch nodes → PascalCase `.swift`
+- All functions: `private func name(inputs: [String: Any?] = [:]) async throws -> [String: Any?]`
+- Loop: `for _ in 0..<N` with `_state.merge` feedback and `filterKeys`
+- Router: `if inputs["condition"] as? String == "name"` dispatch chain
+- Node calls: `try await`
 
 ---
 
@@ -121,6 +174,8 @@ Kotlin: `Sanitize.kt`, `Pipeline.kt`, `Main.kt` — same structure, same package
 | `tests/parallel.test.ts` | independent nodes run concurrently (timing), dependent nodes stay ordered, diamond merge, error propagation |
 | `tests/router.test.ts` | routes true/false/named branches, unknown branch throws, serialize round-trip, emitter dispatch |
 | `tests/agent.test.ts` | single-turn, tool call + final answer, parallel multi-tool, maxTurns ceiling, overrides, unknown tool throws, serialization round-trip, registry validation, emitter stubs |
+| `tests/validator.test.ts` | all 6 error types, optional ports, $input exemption, cycle detection with node list, recursive subgraph validation, all real graphs pass clean |
+| `tests/swift.test.ts` | file naming, URLSession, UserDefaults read/write, loop structure, router dispatch, agent stub, async throws signatures, serialize→emit round-trip |
 
 ---
 
