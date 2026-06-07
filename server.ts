@@ -3,6 +3,7 @@ import cors from 'cors'
 import { deserialize, validateRegistry } from './core/serializer'
 import { validateGraph } from './core/validator'
 import { runGraph } from './core/executor'
+import { collectEvents } from './node/tracer'
 import { emitGraphJS } from './emitters/web/emitGraphJS'
 import { emitGraphKotlin } from './emitters/android/emitKotlin'
 import { emitGraphSwift } from './emitters/swift/emitSwift'
@@ -112,10 +113,10 @@ export function createApp() {
   })
 
   // POST /run
-  // Body: { graph: SerializedGraph, inputs?: Record<string, any> }
-  // Returns: { outputs: Record<string, any> }
+  // Body: { graph: SerializedGraph, inputs?: Record<string, any>, trace?: boolean }
+  // Returns: { outputs: Record<string, any>, events?: NodeEvent[] }
   app.post('/run', async (req, res) => {
-    const { graph, inputs } = req.body as { graph: SerializedGraph; inputs?: Record<string, any> }
+    const { graph, inputs, trace } = req.body as { graph: SerializedGraph; inputs?: Record<string, any>; trace?: boolean }
     if (!graph) return res.status(400).json({ error: 'Missing graph' })
 
     const validationErrors = validateGraph(graph)
@@ -130,8 +131,11 @@ export function createApp() {
 
     try {
       const execGraph = deserialize(graph, REGISTRY)
-      const values = await runGraph(execGraph, {}, undefined, inputs)
-      res.json({ outputs: extractOutputs(graph, values) })
+      const { hook, events } = collectEvents()
+      const values = await runGraph(execGraph, {}, trace ? hook : undefined, inputs)
+      const result: Record<string, any> = { outputs: extractOutputs(graph, values) }
+      if (trace) result.events = events
+      res.json(result)
     } catch (err: any) {
       res.status(500).json({ error: err.message ?? 'Execution failed' })
     }

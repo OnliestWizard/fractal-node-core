@@ -28,9 +28,10 @@ async function main() {
   const values = await runGraph(
     graph,
     {},
-    (id) => {
-      if (id === 'passthrough') { cacheHit = true; console.log('Cache HIT — returning stored answer.\n') }
-      if (id === 'http_fetch')  { console.log('Cache MISS — fetching page...\n') }
+    (event) => {
+      if (event.type !== 'complete') return
+      if (event.nodeId === 'passthrough') { cacheHit = true; console.log('Cache HIT — returning stored answer.\n') }
+      if (event.nodeId === 'http_fetch')  { console.log('Cache MISS — fetching page...\n') }
     },
     { url, question }
   )

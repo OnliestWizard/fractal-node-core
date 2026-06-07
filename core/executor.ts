@@ -10,12 +10,12 @@ function portToJsonSchema(port: Port): Record<string, any> {
   return { type: map[port.type] ?? 'string' }
 }
 
-export type NodeHook = (
-  id: string,
-  inputs: Record<string, any>,
-  output: Record<string, any>,
-  depth: number
-) => void
+export type NodeEvent =
+  | { type: 'start';    nodeId: string; inputs: Record<string, any>; depth: number }
+  | { type: 'complete'; nodeId: string; inputs: Record<string, any>; outputs: Record<string, any>; durationMs: number; depth: number }
+  | { type: 'error';    nodeId: string; inputs: Record<string, any>; error: Error; durationMs: number; depth: number }
+
+export type NodeHook = (event: NodeEvent) => void
 
 function normaliseOutput(raw: any, portIds: string[]): Record<string, any> {
   if (typeof raw === 'object' && raw !== null && !Array.isArray(raw)) return raw
@@ -59,7 +59,12 @@ async function executeGraph(
         }
       }
 
+      const t0 = Date.now()
+      onNode?.({ type: 'start', nodeId, inputs, depth })
+
       let output: Record<string, any> = {}
+
+      try {
 
       if (node.agent && node.tools) {
         const maxTurns = node.constraints?.maxTurns ?? 10
@@ -105,12 +110,14 @@ async function executeGraph(
           }
 
           const toolResults = await Promise.all(
-            msg.tool_calls.map(async tc => {
-              const tool = toolDefs.find(t => t.id === tc.function.name)
-              if (!tool) throw new Error(`Agent "${nodeId}": unknown tool "${tc.function.name}"`)
-              const toolInputs = JSON.parse(tc.function.arguments)
-              const fn = overrides[tc.function.name] ?? tool.run
-              if (!fn) throw new Error(`No implementation for tool "${tc.function.name}"`)
+            msg.tool_calls.filter(tc => tc.type === 'function').map(async tc => {
+              const fn_name = (tc as any).function.name as string
+              const fn_args = (tc as any).function.arguments as string
+              const tool = toolDefs.find(t => t.id === fn_name)
+              if (!tool) throw new Error(`Agent "${nodeId}": unknown tool "${fn_name}"`)
+              const toolInputs = JSON.parse(fn_args)
+              const fn = overrides[fn_name] ?? tool.run
+              if (!fn) throw new Error(`No implementation for tool "${fn_name}"`)
               const raw = await fn(toolInputs)
               return { tool_call_id: tc.id, output: normaliseOutput(raw, tool.outputs.map(p => p.id)) }
             })
@@ -183,7 +190,13 @@ async function executeGraph(
         output = normaliseOutput(raw, node.outputs.map(p => p.id))
       }
 
-      onNode?.(nodeId, inputs, output, depth)
+      } catch (err) {
+        const error = err instanceof Error ? err : new Error(String(err))
+        onNode?.({ type: 'error', nodeId, inputs, error, durationMs: Date.now() - t0, depth })
+        throw error
+      }
+
+      onNode?.({ type: 'complete', nodeId, inputs, outputs: output, durationMs: Date.now() - t0, depth })
       return output
     })()
 

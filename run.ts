@@ -85,14 +85,16 @@ const fmt = (v: Record<string, any>) =>
   console.log(`  Input: "${INPUT}"`)
   console.log()
 
-  const values = await runGraph(graph, {}, (id, inputs, output, depth) => {
+  const values = await runGraph(graph, {}, (event) => {
+    if (event.type !== 'complete') return
     step++
+    const { nodeId, inputs, outputs, depth, durationMs } = event
     const prefix = pad(depth)
     const label  = LABELS[depth] ? `[${LABELS[depth]}]` : `[L${depth + 1}]`
     const marker = depth > 0 ? '↳ ' : ''
-    console.log(`${prefix}${label} [${step}] ${marker}${id}`)
+    console.log(`${prefix}${label} [${step}] ${marker}${nodeId} (${durationMs}ms)`)
     console.log(`${prefix}      in : ${fmt(inputs)}`)
-    console.log(`${prefix}      out: ${fmt(output)}`)
+    console.log(`${prefix}      out: ${fmt(outputs)}`)
     console.log()
   })
 

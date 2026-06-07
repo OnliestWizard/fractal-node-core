@@ -7,7 +7,7 @@ A graph-based execution engine where nodes are connected by typed edges and grap
 
 ---
 
-## Current state: WORKING — 113 tests passing, 14 test files
+## Current state: WORKING — 125 tests passing, 15 test files
 
 ```
 npx tsx run.ts                                            # 3-level demo with execution tracing
@@ -178,6 +178,7 @@ Kotlin: `Sanitize.kt`, `Pipeline.kt`, `Main.kt` — same structure, same package
 | `tests/validator.test.ts` | all 6 error types, optional ports, $input exemption, cycle detection with node list, recursive subgraph validation, all real graphs pass clean |
 | `tests/swift.test.ts` | file naming, URLSession, UserDefaults read/write, loop structure, router dispatch, agent stub, async throws signatures, serialize→emit round-trip |
 | `tests/server.test.ts` | /health, /capabilities shape, /validate valid+invalid graphs, /emit js+kotlin+swift+unknown, /run success+invalid graph+missing leaf+missing body |
+| `tests/telemetry.test.ts` | start/complete/error events, durationMs, depth tracking for subgraphs, parallel fan-out ordering, collectEvents utility |
 
 ---
 
@@ -234,6 +235,26 @@ Kotlin: `Sanitize.kt`, `Pipeline.kt`, `Main.kt` — same structure, same package
 Built-in registry: `http_fetch`, `research_answer`, `draft_writer`, `quality_judge`, `memory_read`, `memory_write`, `passthrough`.
 
 All OpenAI capability files use lazy init (`let _client; const client = () => (_client ??= new OpenAI())`) — no crash on import without API key, safe for test environments.
+
+---
+
+## Telemetry protocol (`core/executor.ts` + `node/tracer.ts`)
+
+`NodeEvent` discriminated union — three event types fired by `runGraph` via the `onNode` hook:
+
+| Event type | Fields | When |
+|---|---|---|
+| `start` | `nodeId, inputs, depth` | Immediately before node executes (after predecessors resolve) |
+| `complete` | `nodeId, inputs, outputs, durationMs, depth` | After node succeeds |
+| `error` | `nodeId, inputs, error, durationMs, depth` | On node failure (error re-thrown after event fires) |
+
+`depth` increments for each subgraph/branch/loop level — top-level nodes are depth 0.
+
+Two utilities in `node/tracer.ts`:
+- `createTracer(label?)` — pretty-prints events to stdout with indentation by depth and timing. Used by CLI runners.
+- `collectEvents()` — returns `{ hook, events[] }` for capturing all events programmatically. Used by `/run?trace=true` server endpoint and tests.
+
+`POST /run` accepts `trace: true` in the request body → returns `{ outputs, events }` with the full event log.
 
 ---
 

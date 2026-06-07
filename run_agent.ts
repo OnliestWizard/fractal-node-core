@@ -17,18 +17,20 @@ async function main() {
   await runGraph(
     graph,
     {},
-    (id, _inputs, output, _depth) => {
-      if (id === 'draft_writer') {
+    (event) => {
+      if (event.type !== 'complete') return
+      const { nodeId, outputs } = event
+      if (nodeId === 'draft_writer') {
         iteration++
         process.stdout.write('\n')
         console.log('-'.repeat(60))
         console.log(`Draft ${iteration}`)
         console.log('-'.repeat(60))
       }
-      if (id === 'quality_judge') {
-        const verdict = output.continue ? 'CONTINUE' : 'DONE'
+      if (nodeId === 'quality_judge') {
+        const verdict = outputs.continue ? 'CONTINUE' : 'DONE'
         console.log(`\nJudge: ${verdict}`)
-        if (output.feedback) console.log(`Feedback: ${output.feedback}`)
+        if (outputs.feedback) console.log(`Feedback: ${outputs.feedback}`)
         console.log('='.repeat(60))
       }
     },

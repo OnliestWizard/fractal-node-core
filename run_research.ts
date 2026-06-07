@@ -18,8 +18,8 @@ async function main() {
   await runGraph(
     graph,
     {},
-    (id, _inputs, _output, _depth) => {
-      if (id === 'http_fetch') console.log('Fetched. Answering...\n')
+    (event) => {
+      if (event.type === 'complete' && event.nodeId === 'http_fetch') console.log('Fetched. Answering...\n')
     },
     { url, question }
   )

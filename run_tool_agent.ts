@@ -21,8 +21,8 @@ After answering, store your response in memory so future queries can reuse it.`
   const values = await runGraph(
     graph,
     {},
-    (id, _in, out) => {
-      if (id === 'tool_agent') process.stdout.write(out.response ?? '')
+    (event) => {
+      if (event.type === 'complete' && event.nodeId === 'tool_agent') process.stdout.write(event.outputs.response ?? '')
     },
     { prompt, system }
   )

@@ -24,10 +24,11 @@ async function main() {
     await runGraph(
       graph,
       {},
-      (id, _in, out) => {
-        if (id === 'http_fetch')      console.log('Fetched. Answering...\n')
-        if (id === 'research_answer') process.stdout.write('\n')
-        if (id === 'memory_write')    console.log(`\nStored under key: "${out.key}"`)
+      (event) => {
+        if (event.type !== 'complete') return
+        if (event.nodeId === 'http_fetch')      console.log('Fetched. Answering...\n')
+        if (event.nodeId === 'research_answer') process.stdout.write('\n')
+        if (event.nodeId === 'memory_write')    console.log(`\nStored under key: "${event.outputs.key}"`)
       },
       { url, question }
     )

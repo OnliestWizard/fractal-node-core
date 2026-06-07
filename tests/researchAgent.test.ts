@@ -26,7 +26,7 @@ test('ResearchAgent executes fetch → answer in order', async () => {
   await runGraph(
     eg,
     {},
-    (id) => { order.push(id) },
+    (event) => { if (event.type === 'complete') order.push(event.nodeId) },
     { url: 'https://example.com', question: 'What is this?' }
   )
   expect(order.indexOf('http_fetch')).toBeLessThan(order.indexOf('research_answer'))
