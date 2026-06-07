@@ -14,6 +14,7 @@ export type ValueType =
 export type SideEffect =
   | 'hardware_access'
   | 'filesystem_write'
+  | 'filesystem_read'
   | 'network_access'
   | 'microphone'
   | 'camera'
@@ -53,15 +54,24 @@ export interface NodeDefinition {
     offlineCapable?: boolean
     realtime?: boolean
     maxIterations?: number
+    maxTurns?: number
   }
 
   // When true, the subgraph runs repeatedly until $output.continue === false
   loop?: boolean
 
-  // Runtime — either a leaf function or a subgraph, never both
+  // When true, branches[String(inputs.condition)] is executed; other inputs forwarded
+  router?: boolean
+
+  // When true, runs an LLM-driven tool-calling loop over the declared tools
+  agent?: boolean
+
+  // Runtime — leaf function, subgraph, router branches, or agent tools (mutually exclusive)
   run?: (inputs: Record<string, any>) => any
   subgraph?: IExecutionGraph
+  branches?: Record<string, IExecutionGraph>
+  tools?: NodeDefinition[]
 }
 
 // The stable, serialisable part of a node — what you promise, not how you fulfill it
-export type NodeContract = Omit<NodeDefinition, 'run' | 'subgraph'>
+export type NodeContract = Omit<NodeDefinition, 'run' | 'subgraph' | 'branches' | 'tools'>

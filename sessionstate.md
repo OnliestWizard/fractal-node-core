@@ -7,14 +7,18 @@ A graph-based execution engine where nodes are connected by typed edges and grap
 
 ---
 
-## Current state: WORKING — write/judge loop confirmed end-to-end, 18 tests passing
+## Current state: WORKING — 60 tests passing, 11 test files
 
 ```
-npx tsx run.ts                          # 3-level demo with execution tracing
-npx tsx emit.ts                         # emits JS + Kotlin from CaptureAndTranscribe.graph.json
-npx tsx run_agent.ts "your prompt"      # runs RefineLoop agent via OpenAI gpt-4o-mini (needs OPENAI_API_KEY)
-npm test                                # vitest run (18 tests, 6 files)
-npx tsc --noEmit                        # type check (zero errors in project code)
+npx tsx run.ts                                            # 3-level demo with execution tracing
+npx tsx emit.ts                                           # emits JS + Kotlin from CaptureAndTranscribe.graph.json
+npx tsx run_agent.ts "your prompt"                        # RefineLoop write/judge agent (needs OPENAI_API_KEY)
+npx tsx run_research.ts "https://..." "your question"     # ResearchAgent: fetch URL → answer question
+npx tsx run_memory.ts write "https://..." "question"      # ResearchAndRemember: fetch + store answer
+npx tsx run_memory.ts read "https://..."                  # Recall: read stored answer by key
+npx tsx run_tool_agent.ts "your prompt"                   # ToolAgent: LLM-driven tool-calling loop
+npm test                                                  # vitest run (60 tests, 11 files)
+npx tsc --noEmit                                          # type check (zero errors in project code)
 ```
 
 ---
@@ -24,20 +28,62 @@ npx tsc --noEmit                        # type check (zero errors in project cod
 | Type | Purpose |
 |---|---|
 | `ValueType` | All allowed port value types (`string`, `number`, `boolean`, `object`, `audio`, `image`, `void`, `any`) |
-| `SideEffect` | Platform capabilities a node requires (`microphone`, `camera`, `network_access`, `filesystem_write`, `hardware_access`, `llm`) |
+| `SideEffect` | Platform capabilities a node requires (`microphone`, `camera`, `network_access`, `filesystem_write`, `filesystem_read`, `hardware_access`, `llm`) |
 | `Port` | `{ id, type, optional? }` |
 | `Edge` | `{ from: { nodeId, portId }, to: { nodeId, portId } }` |
 | `IExecutionGraph` | Interface for graph (avoids circular import with `NodeDefinition`) |
-| `NodeDefinition` | Full node: identity + ports + sideEffects + constraints + runtime (`run` or `subgraph`) |
-| `NodeContract` | `Omit<NodeDefinition, 'run' \| 'subgraph'>` — stable, serialisable promise |
+| `NodeDefinition` | Full node: identity + ports + sideEffects + constraints + runtime (`run`, `subgraph`, `branches`, or `tools`) |
+| `NodeContract` | `Omit<NodeDefinition, 'run' \| 'subgraph' \| 'branches' \| 'tools'>` — stable, serialisable promise |
 
-`NodeContract.ts` and `NodeSchema.ts` are thin re-exports — no duplicate definitions.
+---
+
+## Node execution modes (mutually exclusive runtime fields)
+
+| Field | Flag | Description |
+|---|---|---|
+| `run` | — | Leaf node — plain async function, wired from registry |
+| `subgraph` | `loop?: true` | Subgraph node — runs inner graph once, or in a loop until `$output.continue === false` |
+| `branches` | `router: true` | Router node — executes `branches[String(inputs.condition)]` |
+| `tools` | `agent: true` | Agent node — LLM-driven tool-calling loop; tools are `NodeDefinition[]` |
 
 ---
 
 ## Subgraph boundary convention
 - `$input` — boundary node, no incoming edges; output ports pre-seeded by executor with parent node's inputs
 - `$output` — sink node; edges flowing into it define what the subgraph exposes as outputs
+
+---
+
+## Parallel execution (`core/executor.ts`)
+Each node is now a Promise that awaits only its direct predecessors (`Promise.all` on predecessor promises). Nodes with no shared data dependency run concurrently — independent branches fan out automatically. Loop iterations remain sequential by design. Verified with timing tests: 3 × 50ms nodes finish in ~50ms total.
+
+---
+
+## Router node (`router: true`)
+- **`branches`** on `NodeDefinition`: `Record<string, IExecutionGraph>` — branch name → subgraph
+- **Condition**: `inputs.condition` (any type — coerced to string via `String()`). Boolean `true`/`false` maps to branch keys `"true"`/`"false"`.
+- **Executor**: picks `branches[String(inputs.condition)]`, seeds its `$input` with all non-condition inputs, executes it, returns its `$output`
+- **Serializer**: `SerializedNode.branches?: Record<string, SerializedGraph>`; `collectLeafIds` recurses into branches; `serialize`/`deserialize` handle branches
+- **Emitters**: each branch → its own module file; router wrapper emits `if (inputs.condition === "name")` dispatch chain
+- **Demo**: `node/graphs/MemoryOrFetch.graph.json` — checks memory first (`memory_read`), routes `true` (return cached) / `false` (fetch + store)
+
+---
+
+## Agent node (`agent: true`)
+- **`tools`** on `NodeDefinition`: `NodeDefinition[]` — tool definitions available to the LLM
+- **Ports**: `inputs: [prompt, system?]`, `outputs: [response]`
+- **`constraints.maxTurns`**: safety ceiling for LLM turns, default 10
+- **Executor loop**:
+  1. Build OpenAI tool schemas from `node.tools` (port types → JSON schema)
+  2. Call `gpt-4o` with `tool_choice: 'auto'`
+  3. If final message → `output = { response }`
+  4. If tool calls → execute all in parallel (`Promise.all`), append results, continue
+  5. Repeat up to `maxTurns`
+- **Serializer**: `SerializedNode.tools?: NodeContract[]` (strips `run`); `collectLeafIds` collects tool IDs; `deserialize` wires `run: registry[tool.id]` onto each tool
+- **`NodeContract`** now omits `tools` (it references `NodeDefinition[]` which contains `run`)
+- **Overrides**: `overrides[toolId]` takes precedence over `tool.run`, same as top-level nodes
+- **Emitters**: both JS and Kotlin emit a `throw` stub — agent nodes require the fractal executor
+- **Demo**: `node/graphs/ToolAgent.graph.json` + `run_tool_agent.ts` — agent with `http_fetch`, `memory_read`, `memory_write` as tools
 
 ---
 
@@ -55,10 +101,9 @@ Kotlin: `Sanitize.kt`, `Pipeline.kt`, `Main.kt` — same structure, same package
 
 ## Serialisation
 - `core/serializer.ts` — `SerializedGraph` (pure JSON, no Maps/functions), `RuntimeRegistry` (leaf implementations), `serialize` / `deserialize` / `toJSON` / `fromJSON`
-- `validateRegistry(data, registry)` — returns IDs of leaf nodes missing from registry (skips boundary + subgraph nodes recursively); exported for explicit pre-flight checks
-- `deserialize` calls `validateRegistry` automatically and `console.warn`s missing IDs at load time, not execution time
+- `validateRegistry(data, registry)` — returns IDs of leaf nodes missing from registry (recurses into subgraphs, branches, and tool lists)
+- `deserialize` calls `validateRegistry` automatically and `console.warn`s missing IDs at load time
 - Topology (graph JSON) and implementations (registry) are separate. Graph files are portable; registry wires in platform-specific code.
-- Round-trip verified: `"[clean] hello world"` matches after full JSON cycle across 3 levels.
 
 ---
 
@@ -70,62 +115,48 @@ Kotlin: `Sanitize.kt`, `Pipeline.kt`, `Main.kt` — same structure, same package
 | `tests/registry.test.ts` | `validateRegistry` returns correct missing IDs; `deserialize` warns / stays silent |
 | `tests/llm.test.ts` | `llm_reason` returns text, passes/omits system prompt, handles empty content |
 | `tests/loop.test.ts` | loop iterates correctly, stops on `continue: false`, respects `maxIterations`, non-loop subgraph unaffected |
-| `tests/refineLoop.test.ts` | registry finds `refine_draft` as only leaf; deserialization preserves loop metadata; JS/Kotlin emit for-loop structure |
+| `tests/refineLoop.test.ts` | registry finds leaves; deserialization preserves loop metadata; JS/Kotlin emit for-loop structure |
+| `tests/researchAgent.test.ts` | registry, execution order, body piping, JS emit, Kotlin emit |
+| `tests/memory.test.ts` | memory_write/read logic, registry validation for ResearchAndRemember + Recall, JS/Kotlin emitter branches |
+| `tests/parallel.test.ts` | independent nodes run concurrently (timing), dependent nodes stay ordered, diamond merge, error propagation |
+| `tests/router.test.ts` | routes true/false/named branches, unknown branch throws, serialize round-trip, emitter dispatch |
+| `tests/agent.test.ts` | single-turn, tool call + final answer, parallel multi-tool, maxTurns ceiling, overrides, unknown tool throws, serialization round-trip, registry validation, emitter stubs |
 
 ---
 
-## LoopNode
+## Memory nodes
 
-- **`loop?: boolean`** on `NodeDefinition` — flows through `NodeContract` → `SerializedNode` automatically
-- **`maxIterations?: number`** on `constraints` — safety ceiling, default 10
-- **Executor**: loop branch runs subgraph in a `for` loop; feeds `$output` back into `$input` each iteration; stops when `$output.continue === false` or ceiling hit; strips `continue` from final output
-- **JS emitter**: `emitLoopBody` emits `for` loop with `_state` feedback object; `emitModule` detects `node.loop` and routes to it
-- **Kotlin emitter**: same pattern using `toMutableMap()` / `filterKeys`
-- **Convention**: subgraph must include a `continue: boolean` port on `$output`; anything else on `$output` is fed back as `$input` on the next iteration
-
----
-
-## OpenAI provider + runner
-
-- **`node/capabilities/llm_reason_openai.ts`** — OpenAI drop-in for `llm_reason`; uses `gpt-4o-mini` streaming
-- **`node/capabilities/refine_draft_openai.ts`** — OpenAI drop-in for `refine_draft`; streams to stdout live, same `[DONE]`/`[CONTINUE]` parsing
-- **`run_agent.ts`** — CLI runner: loads `RefineLoop.graph.json`, registers OpenAI implementations, accepts prompt as argv, streams each draft iteration with headers showing pass number and continue/done decision
-- **`core/executor.ts`** — added `inputs?: Record<string, any>` param to `runGraph`; maps `{ prompt: 'x' }` → `$input:prompt` in the seed so top-level `$input` boundary nodes work without a wrapper leaf
-- **Provider swap pattern**: same graph JSON + same executor, different registry = different LLM provider. Anthropic and OpenAI implementations coexist in `node/capabilities/`
-- **Top-level await fix**: `run_agent.ts` wraps execution in `async function main()` — `tsconfig` uses `module: "CommonJS"` which doesn't support top-level await; tsx/esbuild throws without the wrapper
-- **Confirmed live**: agent ran end-to-end against real OpenAI API; `gpt-4o-mini` tends to mark `[DONE]` on first pass for most prompts — stricter `REFINE_INSTRUCTIONS` or more demanding prompts needed to trigger multi-iteration loops
+- **`node/capabilities/memory_write.ts`** — reads `.fractal_memory.json`, merges new key, writes back; inputs `{ key, value }`, outputs `{ key }`; sideEffects: `filesystem_write`
+- **`node/capabilities/memory_read.ts`** — reads `.fractal_memory.json`; inputs `{ key }`, outputs `{ value, found }`; sideEffects: `filesystem_read`
+- **`node/graphs/ResearchAndRemember.graph.json`** — `$input(url, question)` → `http_fetch` → `research_answer` → `memory_write(key=url)` → `$output(key)`
+- **`node/graphs/Recall.graph.json`** — `$input(key)` → `memory_read` → `$output(value, found)`
+- **`run_memory.ts`** — subcommands: `write <url> [question]` and `read <key>`
+- **Emitters**: JS uses `localStorage.setItem/getItem`; Kotlin uses `fractal_memory.json` + `JSONObject`
 
 ---
 
-## Two-agent write/judge loop
+## ResearchAgent (`http_fetch` + `research_answer`)
 
-- **Architecture**: `refine` subgraph now has two nodes — `draft_writer` (generates) and `quality_judge` (evaluates independently). Separation prevents the model from rationalizing its own output.
-- **Feedback port**: `quality_judge` outputs `{ response, continue, feedback }`. `feedback` flows back through the loop into `$input.feedback` → `draft_writer.feedback`. Writer receives specific fix instructions on every pass after the first.
-- **`draft_writer_openai.ts`**: first pass writes from scratch; subsequent passes include "Required fixes from quality review: ..." in the user message
-- **`quality_judge_openai.ts`**: `max_tokens: 256`, structured output format `VERDICT: DONE/CONTINUE\nFEEDBACK: ...`; passes `draft` through as `response`
-- **Confirmed live**: feedback loop runs correctly — judge outputs specific constraints, writer responds to them each iteration
-- **Model split**: judge runs on `gpt-4o` (accurate reasoning, checklist evaluation), writer runs on `gpt-4o-mini` (cheap, fast generation). Different nodes use different models — architecture supports this naturally via the registry
-- **Judge prompt**: checklist format forces explicit per-requirement evaluation with evidence before verdict; `max_tokens: 512`; feedback = only UNMET lines fed back to writer
-- **Confirmed end-to-end**: loop converged in 4 passes — judge caught word count (pass 1), opening constraint (pass 2), word count overcorrection (pass 3), DONE on pass 4. gpt-4o judge vs gpt-4o-mini judge was the decisive fix
+- **`node/capabilities/http_fetch.ts`** — wraps Node 22 built-in `fetch`; inputs `{ url, method? }`, outputs `{ body: string, status: number }`
+- **`node/capabilities/research_answer_openai.ts`** — `gpt-4o-mini` streaming; takes `{ content, question }`, answers using only fetched content
+- **`node/graphs/ResearchAgent.graph.json`** — `$input(url, question)` → `http_fetch` → `research_answer` → `$output(response)`
+- **`run_research.ts`** — CLI runner; accepts URL and question as argv
 
 ---
 
-## First agent graph (`RefineLoop`)
+## Two-agent write/judge loop (`RefineLoop`)
 
-- **`node/graphs/RefineLoop.graph.json`** — top-level graph: `$input(prompt, system?)` → `refine` (loop node) → `$output(response)`
-- **`node/nodes/RefineDraft.node.json`** — contract for `refine_draft`: takes `{ prompt, system?, response? }`, outputs `{ response, continue }`
-- **`node/capabilities/refine_draft.ts`** — implementation: calls `claude-opus-4-8`; on first iteration writes a draft; on subsequent iterations improves the previous draft; appends `[DONE]` or `[CONTINUE]` which the node parses to set the `continue` boolean; marker is stripped from the returned `response`
-- **Loop mechanics**: `refine` loop node (maxIterations: 5) feeds `$output.response` back into `$input.response` each iteration; the initial `prompt` persists unchanged
-- **Emitted output**: JS emits `refine.js` with a `for` loop and `_state` object; Kotlin emits `Refine.kt` with a `for (_i in 0 until N)` loop
+- **Architecture**: two nodes — `draft_writer` (gpt-4o-mini, generates) and `quality_judge` (gpt-4o, evaluates). Separation prevents self-rationalization.
+- **Feedback port**: `quality_judge` outputs `{ response, continue, feedback }`. Feedback flows back to writer each iteration.
+- **`node/graphs/RefineLoop.graph.json`** — top-level: `$input(prompt, system?)` → `refine` (loop, maxIter 5) → `$output(response)`
+- **`run_agent.ts`** — CLI runner; streams each draft iteration with pass number and judge decision
+- **Confirmed live**: converged in 4 passes with gpt-4o judge
 
 ---
 
 ## LLM node (`llm_reason`)
-- **Contract**: `node/nodes/LLMReason.node.json` — inputs: `prompt` (string), `system` (string, optional); output: `response` (string); sideEffects: `["llm", "network_access"]`
-- **Implementation**: `node/capabilities/llm.ts` — wraps Anthropic SDK, adaptive thinking, streaming via `.stream().finalMessage()`
-- **JS emitter**: `sideEffects: ["llm"]` branch in `emitGraphJS.ts` emits Anthropic streaming call inline
-- **Kotlin emitter**: same branch in `emitKotlin.ts` emits `AnthropicOkHttpClient` call
-- **Direction**: this is the foundation for agent capabilities — next step is wiring `llm_reason` into a graph and building agent loop primitives (see `Gpt.md`)
+- **Contract**: `node/nodes/LLMReason.node.json` — inputs: `prompt`, `system?`; output: `response`; sideEffects: `["llm", "network_access"]`
+- **Implementation**: `node/capabilities/llm.ts` — wraps Anthropic SDK, adaptive thinking, streaming
 
 ---
 

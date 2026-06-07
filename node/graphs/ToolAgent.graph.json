@@ -1,0 +1,79 @@
+{
+  "nodes": [
+    {
+      "id": "$input",
+      "inputs": [],
+      "outputs": [
+        { "id": "prompt", "type": "string" },
+        { "id": "system", "type": "string", "optional": true }
+      ]
+    },
+    {
+      "id": "tool_agent",
+      "description": "LLM agent that decides which tools to call to answer the prompt",
+      "agent": true,
+      "inputs": [
+        { "id": "prompt", "type": "string" },
+        { "id": "system", "type": "string", "optional": true }
+      ],
+      "outputs": [
+        { "id": "response", "type": "string" }
+      ],
+      "sideEffects": ["llm", "network_access", "filesystem_read", "filesystem_write"],
+      "constraints": { "maxTurns": 8 },
+      "tools": [
+        {
+          "id": "http_fetch",
+          "description": "Fetch the raw HTML/text content of a URL. Use this to read web pages.",
+          "inputs": [
+            { "id": "url", "type": "string" }
+          ],
+          "outputs": [
+            { "id": "body",   "type": "string" },
+            { "id": "status", "type": "number" }
+          ],
+          "sideEffects": ["network_access"],
+          "constraints": { "offlineCapable": false }
+        },
+        {
+          "id": "memory_read",
+          "description": "Read a previously stored value from persistent memory by key. Returns { value, found }.",
+          "inputs": [
+            { "id": "key", "type": "string" }
+          ],
+          "outputs": [
+            { "id": "value", "type": "string" },
+            { "id": "found", "type": "boolean" }
+          ],
+          "sideEffects": ["filesystem_read"],
+          "constraints": { "offlineCapable": true }
+        },
+        {
+          "id": "memory_write",
+          "description": "Store a value in persistent memory under the given key for future recall.",
+          "inputs": [
+            { "id": "key",   "type": "string" },
+            { "id": "value", "type": "string" }
+          ],
+          "outputs": [
+            { "id": "key", "type": "string" }
+          ],
+          "sideEffects": ["filesystem_write"],
+          "constraints": { "offlineCapable": true }
+        }
+      ]
+    },
+    {
+      "id": "$output",
+      "inputs": [
+        { "id": "response", "type": "string" }
+      ],
+      "outputs": []
+    }
+  ],
+  "edges": [
+    { "from": { "nodeId": "$input",     "portId": "prompt"   }, "to": { "nodeId": "tool_agent", "portId": "prompt"   } },
+    { "from": { "nodeId": "$input",     "portId": "system"   }, "to": { "nodeId": "tool_agent", "portId": "system"   } },
+    { "from": { "nodeId": "tool_agent", "portId": "response" }, "to": { "nodeId": "$output",    "portId": "response" } }
+  ]
+}

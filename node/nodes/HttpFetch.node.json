@@ -1,0 +1,14 @@
+{
+  "id": "http_fetch",
+  "description": "Fetch a URL and return the response body as text and the HTTP status code",
+  "inputs": [
+    { "id": "url",    "type": "string" },
+    { "id": "method", "type": "string", "optional": true }
+  ],
+  "outputs": [
+    { "id": "body",   "type": "string" },
+    { "id": "status", "type": "number" }
+  ],
+  "sideEffects": ["network_access"],
+  "constraints": { "offlineCapable": false }
+}

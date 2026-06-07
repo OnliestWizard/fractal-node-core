@@ -3,6 +3,8 @@ import type { IExecutionGraph, NodeContract, Edge } from './types'
 
 export interface SerializedNode extends NodeContract {
   subgraph?: SerializedGraph
+  branches?: Record<string, SerializedGraph>
+  tools?: NodeContract[]
 }
 
 export interface SerializedGraph {
@@ -20,6 +22,14 @@ function collectLeafIds(data: SerializedGraph): string[] {
     if (node.id === '$input' || node.id === '$output') continue
     if (node.subgraph) {
       ids.push(...collectLeafIds(node.subgraph))
+    } else if (node.branches) {
+      for (const branch of Object.values(node.branches)) {
+        ids.push(...collectLeafIds(branch))
+      }
+    } else if (node.tools) {
+      for (const tool of node.tools) {
+        ids.push(tool.id)
+      }
     } else {
       ids.push(node.id)
     }
@@ -35,9 +45,15 @@ export function serialize(graph: IExecutionGraph): SerializedGraph {
   const nodes: SerializedNode[] = []
 
   for (const node of graph.nodes.values()) {
-    const { run: _run, subgraph, ...contract } = node
+    const { run: _run, subgraph, branches, tools, ...contract } = node
     const serialized: SerializedNode = { ...contract }
-    if (subgraph) serialized.subgraph = serialize(subgraph)
+    if (subgraph)  serialized.subgraph  = serialize(subgraph)
+    if (branches)  serialized.branches  = Object.fromEntries(
+      Object.entries(branches).map(([k, v]) => [k, serialize(v)])
+    )
+    if (tools)     serialized.tools     = tools.map(
+      ({ run: _r, subgraph: _s, branches: _b, tools: _t, ...tc }) => tc
+    )
     nodes.push(serialized)
   }
 
@@ -52,12 +68,24 @@ export function deserialize(data: SerializedGraph, registry: RuntimeRegistry): E
 
   const graph = new ExecutionGraph()
 
-  for (const { subgraph, ...contract } of data.nodes) {
-    graph.addNode(
-      subgraph
-        ? { ...contract, subgraph: deserialize(subgraph, registry) }
-        : { ...contract, run: registry[contract.id] }
-    )
+  for (const { subgraph, branches, tools, ...contract } of data.nodes) {
+    if (subgraph) {
+      graph.addNode({ ...contract, subgraph: deserialize(subgraph, registry) })
+    } else if (branches) {
+      graph.addNode({
+        ...contract,
+        branches: Object.fromEntries(
+          Object.entries(branches).map(([k, v]) => [k, deserialize(v, registry)])
+        ),
+      })
+    } else if (tools) {
+      graph.addNode({
+        ...contract,
+        tools: tools.map(tc => ({ ...tc, run: registry[tc.id] })),
+      })
+    } else {
+      graph.addNode({ ...contract, run: registry[contract.id] })
+    }
   }
 
   for (const edge of data.edges) {

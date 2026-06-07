@@ -8,6 +8,13 @@ export type EmittedFiles = Record<string, string>
 function nodeBody(node: SerializedNode): string {
   const fx = node.sideEffects ?? []
 
+  if (node.agent) {
+    return [
+      `  // Agent node: tool-calling loop — requires fractal-node-core executor`,
+      `  throw new Error('${node.id}: agent nodes must be run via the fractal executor')`,
+    ].join('\n')
+  }
+
   if (fx.includes('microphone')) {
     const out = node.outputs[0]?.id ?? 'out'
     return [
@@ -27,18 +34,27 @@ function nodeBody(node: SerializedNode): string {
   }
 
   if (fx.includes('network_access')) {
-    const out = node.outputs[0]?.id ?? 'out'
     return [
-      `  const response = await fetch(inputs.url)`,
-      `  const ${out} = await response.json()`,
-      `  return { ${out} }`,
+      `  const _res = await fetch(inputs.url, { method: inputs.method ?? 'GET' })`,
+      `  const body = await _res.text()`,
+      `  const status = _res.status`,
+      `  return { body, status }`,
     ].join('\n')
   }
 
   if (fx.includes('filesystem_write')) {
     return [
-      `  localStorage.setItem(inputs.key, JSON.stringify(inputs.value))`,
-      `  return {}`,
+      `  localStorage.setItem(inputs.key, String(inputs.value))`,
+      `  return { key: inputs.key }`,
+    ].join('\n')
+  }
+
+  if (fx.includes('filesystem_read')) {
+    return [
+      `  const _raw = localStorage.getItem(inputs.key)`,
+      `  const found = _raw !== null`,
+      `  const value = found ? _raw : ''`,
+      `  return { value, found }`,
     ].join('\n')
   }
 
@@ -194,12 +210,25 @@ function emitModule(
     const node = graph.nodes.find(n => n.id === nodeId)!
 
     if (node.subgraph) {
-      // Subgraph → its own file. Recurse, collect import line.
       const childMaxIter = node.loop ? (node.constraints?.maxIterations ?? 10) : undefined
       const importLine = emitModule(node.subgraph, nodeId, files, childMaxIter)
       importLines.push(importLine)
+    } else if (node.branches) {
+      // Each branch → its own module; router wrapper dispatches on condition
+      const branchImports: string[] = []
+      for (const [branchName, branchGraph] of Object.entries(node.branches)) {
+        const branchModuleName = `${nodeId}_${branchName}`
+        const importLine = emitModule(branchGraph, branchModuleName, files)
+        branchImports.push(importLine)
+        importLines.push(importLine)
+      }
+      const cases = Object.keys(node.branches)
+        .map(name => `  if (inputs.condition === ${JSON.stringify(name)}) return ${nodeId}_${name}(inputs)`)
+        .join('\n')
+      localFunctions.push(
+        `async function ${nodeId}(inputs) {\n${cases}\n  throw new Error(\`${nodeId}: unknown branch "\${inputs.condition}"\`)\n}`
+      )
     } else {
-      // Leaf → inline in this file.
       localFunctions.push(emitLeafNode(node))
     }
   }

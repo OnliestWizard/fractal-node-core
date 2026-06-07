@@ -1,0 +1,13 @@
+{
+  "id": "memory_read",
+  "description": "Read a value from persistent memory by key",
+  "inputs": [
+    { "id": "key", "type": "string" }
+  ],
+  "outputs": [
+    { "id": "value", "type": "string" },
+    { "id": "found", "type": "boolean" }
+  ],
+  "sideEffects": ["filesystem_read"],
+  "constraints": { "offlineCapable": true }
+}

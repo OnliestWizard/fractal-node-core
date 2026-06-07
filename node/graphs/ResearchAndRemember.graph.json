@@ -1,0 +1,52 @@
+{
+  "nodes": [
+    {
+      "id": "$input",
+      "inputs": [],
+      "outputs": [
+        { "id": "url",      "type": "string" },
+        { "id": "question", "type": "string" }
+      ]
+    },
+    {
+      "id": "http_fetch",
+      "description": "Fetch the target URL",
+      "inputs":  [{ "id": "url", "type": "string" }],
+      "outputs": [{ "id": "body", "type": "string" }, { "id": "status", "type": "number" }],
+      "sideEffects": ["network_access"],
+      "constraints": { "offlineCapable": false }
+    },
+    {
+      "id": "research_answer",
+      "description": "Answer the question based on fetched content",
+      "inputs":  [
+        { "id": "content",  "type": "string" },
+        { "id": "question", "type": "string" }
+      ],
+      "outputs": [{ "id": "response", "type": "string" }],
+      "sideEffects": ["llm", "network_access"],
+      "constraints": { "offlineCapable": false }
+    },
+    {
+      "id": "memory_write",
+      "description": "Store the answer keyed by URL",
+      "inputs":  [{ "id": "key", "type": "string" }, { "id": "value", "type": "string" }],
+      "outputs": [{ "id": "key", "type": "string" }],
+      "sideEffects": ["filesystem_write"],
+      "constraints": { "offlineCapable": true }
+    },
+    {
+      "id": "$output",
+      "inputs":  [{ "id": "key", "type": "string" }],
+      "outputs": []
+    }
+  ],
+  "edges": [
+    { "from": { "nodeId": "$input",          "portId": "url"      }, "to": { "nodeId": "http_fetch",     "portId": "url"      } },
+    { "from": { "nodeId": "$input",          "portId": "question" }, "to": { "nodeId": "research_answer", "portId": "question" } },
+    { "from": { "nodeId": "http_fetch",      "portId": "body"     }, "to": { "nodeId": "research_answer", "portId": "content"  } },
+    { "from": { "nodeId": "$input",          "portId": "url"      }, "to": { "nodeId": "memory_write",    "portId": "key"      } },
+    { "from": { "nodeId": "research_answer", "portId": "response" }, "to": { "nodeId": "memory_write",    "portId": "value"    } },
+    { "from": { "nodeId": "memory_write",    "portId": "key"      }, "to": { "nodeId": "$output",         "portId": "key"      } }
+  ]
+}

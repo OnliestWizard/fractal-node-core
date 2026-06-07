@@ -1,5 +1,14 @@
-import { IExecutionGraph } from './types'
+import OpenAI from 'openai'
+import { IExecutionGraph, Port } from './types'
 import { topologicalSort } from './topo'
+
+function portToJsonSchema(port: Port): Record<string, any> {
+  const map: Record<string, string> = {
+    string: 'string', number: 'number', boolean: 'boolean', object: 'object',
+    audio: 'string', image: 'string', void: 'null', any: 'string',
+  }
+  return { type: map[port.type] ?? 'string' }
+}
 
 export type NodeHook = (
   id: string,
@@ -20,69 +29,173 @@ async function executeGraph(
   onNode: NodeHook | undefined,
   depth: number
 ): Promise<Map<string, any>> {
-  const values = new Map<string, any>(seed)
+  const nodeIds = topologicalSort([...graph.nodes.keys()], graph.edges)
+    .filter(id => id !== '$input' && id !== '$output')
 
-  for (const nodeId of topologicalSort([...graph.nodes.keys()], graph.edges)) {
-    if (nodeId === '$input' || nodeId === '$output') continue
+  // Each node gets a Promise for its output. Nodes with no shared data dependency
+  // resolve their Promises concurrently — Promise.all fans them out automatically.
+  const nodePromises = new Map<string, Promise<Record<string, any>>>()
 
+  for (const nodeId of nodeIds) {
     const node = graph.nodes.get(nodeId)!
 
-    const inputs: Record<string, any> = {}
-    for (const edge of graph.edges) {
-      if (edge.to.nodeId !== nodeId) continue
-      inputs[edge.to.portId] = values.get(`${edge.from.nodeId}:${edge.from.portId}`)
-    }
+    const predecessors = [...new Set(
+      graph.edges
+        .filter(e => e.to.nodeId === nodeId && e.from.nodeId !== '$input')
+        .map(e => e.from.nodeId)
+    )]
 
-    let output: Record<string, any>
+    const nodePromise = (async () => {
+      await Promise.all(predecessors.map(p => nodePromises.get(p)!))
 
-    if (node.subgraph && node.loop) {
-      const maxIter = node.constraints?.maxIterations ?? 10
-      const loopSeed = new Map<string, any>()
-      for (const port of node.inputs) {
-        loopSeed.set(`$input:${port.id}`, inputs[port.id])
+      const inputs: Record<string, any> = {}
+      for (const edge of graph.edges) {
+        if (edge.to.nodeId !== nodeId) continue
+        if (edge.from.nodeId === '$input') {
+          inputs[edge.to.portId] = seed.get(`$input:${edge.from.portId}`)
+        } else {
+          const predOut = await nodePromises.get(edge.from.nodeId)!
+          inputs[edge.to.portId] = predOut[edge.from.portId]
+        }
       }
 
-      output = {}
-      for (let i = 0; i < maxIter; i++) {
-        const innerValues = await executeGraph(node.subgraph, new Map(loopSeed), overrides, onNode, depth + 1)
+      let output: Record<string, any> = {}
 
-        output = {}
+      if (node.agent && node.tools) {
+        const maxTurns = node.constraints?.maxTurns ?? 10
+        const toolDefs = node.tools
+
+        const toolSchemas = toolDefs.map(tool => ({
+          type: 'function' as const,
+          function: {
+            name: tool.id,
+            description: tool.description ?? '',
+            parameters: {
+              type: 'object',
+              properties: Object.fromEntries(
+                tool.inputs.map(p => [p.id, portToJsonSchema(p)])
+              ),
+              required: tool.inputs.filter(p => !p.optional).map(p => p.id),
+            },
+          },
+        }))
+
+        const messages: OpenAI.ChatCompletionMessageParam[] = [
+          ...(inputs.system ? [{ role: 'system' as const, content: String(inputs.system) }] : []),
+          { role: 'user' as const, content: String(inputs.prompt) },
+        ]
+
+        const openai = new OpenAI()
+        let response = ''
+
+        for (let turn = 0; turn < maxTurns; turn++) {
+          const completion = await openai.chat.completions.create({
+            model: 'gpt-4o',
+            messages,
+            tools: toolSchemas,
+            tool_choice: 'auto',
+          })
+
+          const msg = completion.choices[0].message
+          messages.push(msg as OpenAI.ChatCompletionMessageParam)
+
+          if (!msg.tool_calls?.length) {
+            response = msg.content ?? ''
+            break
+          }
+
+          const toolResults = await Promise.all(
+            msg.tool_calls.map(async tc => {
+              const tool = toolDefs.find(t => t.id === tc.function.name)
+              if (!tool) throw new Error(`Agent "${nodeId}": unknown tool "${tc.function.name}"`)
+              const toolInputs = JSON.parse(tc.function.arguments)
+              const fn = overrides[tc.function.name] ?? tool.run
+              if (!fn) throw new Error(`No implementation for tool "${tc.function.name}"`)
+              const raw = await fn(toolInputs)
+              return { tool_call_id: tc.id, output: normaliseOutput(raw, tool.outputs.map(p => p.id)) }
+            })
+          )
+
+          for (const { tool_call_id, output } of toolResults) {
+            messages.push({ role: 'tool', tool_call_id, content: JSON.stringify(output) })
+          }
+        }
+
+        output = { response }
+      } else if (node.router && node.branches) {
+        const key = String(inputs.condition)
+        const branch = node.branches[key]
+        if (!branch) throw new Error(`Router "${nodeId}": no branch "${key}"`)
+
+        const branchSeed = new Map<string, any>()
+        for (const port of node.inputs) {
+          if (port.id === 'condition') continue
+          branchSeed.set(`$input:${port.id}`, inputs[port.id])
+        }
+
+        const innerValues = await executeGraph(branch, branchSeed, overrides, onNode, depth + 1)
+
+        for (const edge of branch.edges) {
+          if (edge.to.nodeId !== '$output') continue
+          output[edge.to.portId] = innerValues.get(`${edge.from.nodeId}:${edge.from.portId}`)
+        }
+      } else if (node.subgraph && node.loop) {
+        const maxIter = node.constraints?.maxIterations ?? 10
+        const loopSeed = new Map<string, any>()
+        for (const port of node.inputs) {
+          loopSeed.set(`$input:${port.id}`, inputs[port.id])
+        }
+
+        for (let i = 0; i < maxIter; i++) {
+          const innerValues = await executeGraph(node.subgraph, new Map(loopSeed), overrides, onNode, depth + 1)
+
+          output = {}
+          for (const edge of node.subgraph.edges) {
+            if (edge.to.nodeId !== '$output') continue
+            output[edge.to.portId] = innerValues.get(`${edge.from.nodeId}:${edge.from.portId}`)
+          }
+
+          if (!output.continue) break
+
+          for (const [key, val] of Object.entries(output)) {
+            if (key === 'continue') continue
+            loopSeed.set(`$input:${key}`, val)
+          }
+        }
+
+        delete output.continue
+      } else if (node.subgraph) {
+        const innerSeed = new Map<string, any>()
+        for (const port of node.inputs) {
+          innerSeed.set(`$input:${port.id}`, inputs[port.id])
+        }
+
+        const innerValues = await executeGraph(node.subgraph, innerSeed, overrides, onNode, depth + 1)
+
         for (const edge of node.subgraph.edges) {
           if (edge.to.nodeId !== '$output') continue
           output[edge.to.portId] = innerValues.get(`${edge.from.nodeId}:${edge.from.portId}`)
         }
-
-        if (!output.continue) break
-
-        for (const [key, val] of Object.entries(output)) {
-          if (key === 'continue') continue
-          loopSeed.set(`$input:${key}`, val)
-        }
+      } else {
+        const fn = overrides[nodeId] ?? node.run
+        if (!fn) throw new Error(`No runtime for node: ${nodeId}`)
+        const raw = await fn(inputs)
+        output = normaliseOutput(raw, node.outputs.map(p => p.id))
       }
 
-      delete output.continue
-    } else if (node.subgraph) {
-      const innerSeed = new Map<string, any>()
-      for (const port of node.inputs) {
-        innerSeed.set(`$input:${port.id}`, inputs[port.id])
-      }
+      onNode?.(nodeId, inputs, output, depth)
+      return output
+    })()
 
-      const innerValues = await executeGraph(node.subgraph, innerSeed, overrides, onNode, depth + 1)
+    nodePromises.set(nodeId, nodePromise)
+  }
 
-      output = {}
-      for (const edge of node.subgraph.edges) {
-        if (edge.to.nodeId !== '$output') continue
-        output[edge.to.portId] = innerValues.get(`${edge.from.nodeId}:${edge.from.portId}`)
-      }
-    } else {
-      const fn = overrides[nodeId] ?? node.run
-      if (!fn) throw new Error(`No runtime for node: ${nodeId}`)
-      const raw = await fn(inputs)
-      output = normaliseOutput(raw, node.outputs.map(p => p.id))
-    }
+  await Promise.all([...nodePromises.values()])
 
-    onNode?.(nodeId, inputs, output, depth)
-
+  const values = new Map<string, any>(seed)
+  for (const [nodeId, promise] of nodePromises) {
+    const output = await promise
+    const node = graph.nodes.get(nodeId)!
     for (const port of node.outputs) {
       values.set(`${nodeId}:${port.id}`, output[port.id])
     }

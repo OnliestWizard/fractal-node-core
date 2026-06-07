@@ -8,6 +8,13 @@ export type EmittedFiles = Record<string, string>
 function nodeBody(node: SerializedNode): string {
   const fx = node.sideEffects ?? []
 
+  if (node.agent) {
+    return [
+      `    // Agent node: tool-calling loop — requires fractal-node-core executor`,
+      `    throw NotImplementedError("${node.id}: agent nodes must be run via the fractal executor")`,
+    ].join('\n')
+  }
+
   if (fx.includes('microphone')) {
     const out = node.outputs[0]?.id ?? 'out'
     return [
@@ -25,18 +32,32 @@ function nodeBody(node: SerializedNode): string {
   }
 
   if (fx.includes('network_access')) {
-    const out = node.outputs[0]?.id ?? 'out'
     return [
-      `    val response = HttpClient().get(inputs["url"] as String)`,
-      `    val ${out} = response.body<String>()`,
-      `    return mapOf("${out}" to ${out})`,
+      `    val _res = HttpClient().get(inputs["url"] as String)`,
+      `    val body = _res.body<String>()`,
+      `    val status = _res.status.value`,
+      `    return mapOf("body" to body, "status" to status)`,
     ].join('\n')
   }
 
   if (fx.includes('filesystem_write')) {
     return [
-      `    File(inputs["path"] as String).writeText(inputs["value"] as String)`,
-      `    return emptyMap()`,
+      `    val _store = java.io.File("fractal_memory.json")`,
+      `    val _data = if (_store.exists()) org.json.JSONObject(_store.readText()) else org.json.JSONObject()`,
+      `    _data.put(inputs["key"] as String, inputs["value"] as String)`,
+      `    _store.writeText(_data.toString())`,
+      `    return mapOf("key" to inputs["key"])`,
+    ].join('\n')
+  }
+
+  if (fx.includes('filesystem_read')) {
+    return [
+      `    val _store = java.io.File("fractal_memory.json")`,
+      `    if (!_store.exists()) return mapOf("value" to "", "found" to false)`,
+      `    val _data = org.json.JSONObject(_store.readText())`,
+      `    val _key = inputs["key"] as String`,
+      `    return if (_data.has(_key)) mapOf("value" to _data.getString(_key), "found" to true)`,
+      `           else mapOf("value" to "", "found" to false)`,
     ].join('\n')
   }
 
@@ -201,6 +222,16 @@ function emitModule(
     if (node.subgraph) {
       const childMaxIter = node.loop ? (node.constraints?.maxIterations ?? 10) : undefined
       emitModule(node.subgraph, nodeId, files, childMaxIter)
+    } else if (node.branches) {
+      for (const [branchName, branchGraph] of Object.entries(node.branches)) {
+        emitModule(branchGraph, `${nodeId}_${branchName}`, files)
+      }
+      const cases = Object.keys(node.branches)
+        .map(name => `    if (inputs["condition"] == ${JSON.stringify(name)}) return ${nodeId}_${name}(inputs)`)
+        .join('\n')
+      localFunctions.push(
+        `private suspend fun ${nodeId}(inputs: Map<String, Any?> = emptyMap()): Map<String, Any?> {\n${cases}\n    throw IllegalArgumentException("${nodeId}: unknown branch \"\${inputs[\"condition\"]}\"")\n}`
+      )
     } else {
       localFunctions.push(emitLeafNode(node))
     }

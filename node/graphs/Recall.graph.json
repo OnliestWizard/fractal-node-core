@@ -1,0 +1,32 @@
+{
+  "nodes": [
+    {
+      "id": "$input",
+      "inputs": [],
+      "outputs": [
+        { "id": "key", "type": "string" }
+      ]
+    },
+    {
+      "id": "memory_read",
+      "description": "Read a stored answer by key",
+      "inputs":  [{ "id": "key", "type": "string" }],
+      "outputs": [{ "id": "value", "type": "string" }, { "id": "found", "type": "boolean" }],
+      "sideEffects": ["filesystem_read"],
+      "constraints": { "offlineCapable": true }
+    },
+    {
+      "id": "$output",
+      "inputs":  [
+        { "id": "value", "type": "string" },
+        { "id": "found", "type": "boolean" }
+      ],
+      "outputs": []
+    }
+  ],
+  "edges": [
+    { "from": { "nodeId": "$input",     "portId": "key"   }, "to": { "nodeId": "memory_read", "portId": "key"   } },
+    { "from": { "nodeId": "memory_read","portId": "value" }, "to": { "nodeId": "$output",     "portId": "value" } },
+    { "from": { "nodeId": "memory_read","portId": "found" }, "to": { "nodeId": "$output",     "portId": "found" } }
+  ]
+}

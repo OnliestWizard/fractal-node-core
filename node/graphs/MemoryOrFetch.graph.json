@@ -1,0 +1,99 @@
+{
+  "nodes": [
+    {
+      "id": "$input",
+      "inputs": [],
+      "outputs": [
+        { "id": "url",      "type": "string" },
+        { "id": "question", "type": "string" }
+      ]
+    },
+    {
+      "id": "memory_read",
+      "description": "Check if answer is already cached",
+      "inputs":  [{ "id": "key", "type": "string" }],
+      "outputs": [{ "id": "value", "type": "string" }, { "id": "found", "type": "boolean" }],
+      "sideEffects": ["filesystem_read"],
+      "constraints": { "offlineCapable": true }
+    },
+    {
+      "id": "gate",
+      "description": "Return cached answer or fetch and store a new one",
+      "router": true,
+      "inputs": [
+        { "id": "condition", "type": "boolean" },
+        { "id": "cached",    "type": "string"  },
+        { "id": "url",       "type": "string"  },
+        { "id": "question",  "type": "string"  }
+      ],
+      "outputs": [
+        { "id": "response", "type": "string" }
+      ],
+      "branches": {
+        "true": {
+          "nodes": [
+            { "id": "$input",  "inputs": [], "outputs": [{ "id": "cached", "type": "string" }] },
+            { "id": "passthrough",
+              "inputs":  [{ "id": "cached", "type": "string" }],
+              "outputs": [{ "id": "response", "type": "string" }],
+              "sideEffects": []
+            },
+            { "id": "$output", "inputs": [{ "id": "response", "type": "string" }], "outputs": [] }
+          ],
+          "edges": [
+            { "from": { "nodeId": "$input",      "portId": "cached"   }, "to": { "nodeId": "passthrough", "portId": "cached"   } },
+            { "from": { "nodeId": "passthrough",  "portId": "response" }, "to": { "nodeId": "$output",     "portId": "response" } }
+          ]
+        },
+        "false": {
+          "nodes": [
+            { "id": "$input",  "inputs": [], "outputs": [{ "id": "url", "type": "string" }, { "id": "question", "type": "string" }] },
+            {
+              "id": "http_fetch",
+              "inputs":  [{ "id": "url", "type": "string" }],
+              "outputs": [{ "id": "body", "type": "string" }, { "id": "status", "type": "number" }],
+              "sideEffects": ["network_access"],
+              "constraints": { "offlineCapable": false }
+            },
+            {
+              "id": "research_answer",
+              "inputs":  [{ "id": "content", "type": "string" }, { "id": "question", "type": "string" }],
+              "outputs": [{ "id": "response", "type": "string" }],
+              "sideEffects": ["llm", "network_access"],
+              "constraints": { "offlineCapable": false }
+            },
+            {
+              "id": "memory_write",
+              "inputs":  [{ "id": "key", "type": "string" }, { "id": "value", "type": "string" }],
+              "outputs": [{ "id": "key", "type": "string" }],
+              "sideEffects": ["filesystem_write"],
+              "constraints": { "offlineCapable": true }
+            },
+            { "id": "$output", "inputs": [{ "id": "response", "type": "string" }], "outputs": [] }
+          ],
+          "edges": [
+            { "from": { "nodeId": "$input",          "portId": "url"      }, "to": { "nodeId": "http_fetch",     "portId": "url"      } },
+            { "from": { "nodeId": "$input",          "portId": "question" }, "to": { "nodeId": "research_answer","portId": "question"  } },
+            { "from": { "nodeId": "http_fetch",      "portId": "body"     }, "to": { "nodeId": "research_answer","portId": "content"   } },
+            { "from": { "nodeId": "$input",          "portId": "url"      }, "to": { "nodeId": "memory_write",   "portId": "key"       } },
+            { "from": { "nodeId": "research_answer", "portId": "response" }, "to": { "nodeId": "memory_write",   "portId": "value"     } },
+            { "from": { "nodeId": "research_answer", "portId": "response" }, "to": { "nodeId": "$output",        "portId": "response"  } }
+          ]
+        }
+      }
+    },
+    {
+      "id": "$output",
+      "inputs":  [{ "id": "response", "type": "string" }],
+      "outputs": []
+    }
+  ],
+  "edges": [
+    { "from": { "nodeId": "$input",     "portId": "url"      }, "to": { "nodeId": "memory_read", "portId": "key"       } },
+    { "from": { "nodeId": "memory_read","portId": "found"    }, "to": { "nodeId": "gate",        "portId": "condition" } },
+    { "from": { "nodeId": "memory_read","portId": "value"    }, "to": { "nodeId": "gate",        "portId": "cached"    } },
+    { "from": { "nodeId": "$input",     "portId": "url"      }, "to": { "nodeId": "gate",        "portId": "url"       } },
+    { "from": { "nodeId": "$input",     "portId": "question" }, "to": { "nodeId": "gate",        "portId": "question"  } },
+    { "from": { "nodeId": "gate",       "portId": "response" }, "to": { "nodeId": "$output",     "portId": "response"  } }
+  ]
+}

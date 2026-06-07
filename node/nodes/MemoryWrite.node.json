@@ -1,0 +1,13 @@
+{
+  "id": "memory_write",
+  "description": "Write a key/value pair to persistent memory",
+  "inputs": [
+    { "id": "key",   "type": "string" },
+    { "id": "value", "type": "string" }
+  ],
+  "outputs": [
+    { "id": "key", "type": "string" }
+  ],
+  "sideEffects": ["filesystem_write"],
+  "constraints": { "offlineCapable": true }
+}

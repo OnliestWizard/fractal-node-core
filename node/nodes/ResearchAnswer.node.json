@@ -1,0 +1,13 @@
+{
+  "id": "research_answer",
+  "description": "Answer a question based on fetched content",
+  "inputs": [
+    { "id": "content",  "type": "string" },
+    { "id": "question", "type": "string" }
+  ],
+  "outputs": [
+    { "id": "response", "type": "string" }
+  ],
+  "sideEffects": ["llm", "network_access"],
+  "constraints": { "offlineCapable": false }
+}
