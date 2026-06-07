@@ -87,10 +87,25 @@ Input: `"  Hello World  "` → Final: `"[clean] hello world"`
 
 ---
 
+### Session 3 — Serialisation
+- `core/serializer.ts` — new file:
+  - `SerializedNode` — `NodeContract` + optional recursive `subgraph?: SerializedGraph`
+  - `SerializedGraph` — `{ nodes: SerializedNode[], edges: Edge[] }` — pure JSON, no Maps or functions
+  - `RuntimeRegistry` — `Record<string, run fn>` — leaf implementations live here, separate from topology
+  - `serialize(graph)` — strips `run` and recursively serialises subgraphs
+  - `deserialize(data, registry)` — reconstructs `ExecutionGraph`, looks up leaf fns from registry
+  - `toJSON` / `fromJSON` — string convenience wrappers
+- `run.ts` — added round-trip section: serialise → print JSON → deserialise with registry → run → verify match
+
+Round-trip verified: `"[clean] hello world"` matches after full JSON cycle across 3 levels of nesting.
+
+**Key design decision:** topology (graph JSON) and implementations (registry) are separate. A graph file is portable data; the registry wires in the platform-specific code. This is the bridge to the emitter vision.
+
+---
+
 ## Up next (ideas, not committed)
-- [ ] Serialisation — graph round-trip to/from JSON (NodeContract has stable IDs for this)
 - [ ] Make emitters actually traverse the graph instead of hardcoding
 - [ ] Wire up `CaptureAudio.node.json` to the unified type
 - [ ] Set up a real test runner (jest or vitest) and fix the test stubs
-- [ ] Try an N-level deep stress test
 - [ ] What does "emit" mean for a subgraph node — inline expansion or separate function?
+- [ ] Registry validation — warn if a leaf node has no implementation before running

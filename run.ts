@@ -1,5 +1,6 @@
 import { ExecutionGraph } from './core/graph'
 import { runGraph } from './core/executor'
+import { toJSON, fromJSON, type RuntimeRegistry } from './core/serializer'
 
 const INPUT = '  Hello World  '
 
@@ -101,4 +102,40 @@ const fmt = (v: Record<string, any>) =>
   for (const [key, val] of values) {
     console.log(`  ${key.padEnd(20)}  →  "${val}"`)
   }
+
+  // ── Serialisation round-trip ────────────────────────────────────────────────
+
+  console.log()
+  console.log('═══════════════════════════════════════════════')
+  console.log('  SERIALISED GRAPH (JSON)')
+  console.log('═══════════════════════════════════════════════')
+
+  const json = toJSON(graph)
+  console.log(json)
+
+  console.log()
+  console.log('═══════════════════════════════════════════════')
+  console.log('  ROUND-TRIP: deserialise → run → verify')
+  console.log('═══════════════════════════════════════════════')
+
+  // Registry provides the leaf implementations — graph provides the topology.
+  // Boundary nodes ($input, $output) and subgraph nodes are not listed here.
+  const registry: RuntimeRegistry = {
+    source:    async ()         => ({ raw: INPUT }),
+    trim:      async ({ text }) => ({ trimmed: (text as string).trim() }),
+    lowercase: async ({ text }) => ({ result:  (text as string).toLowerCase() }),
+    tag:       async ({ text }) => ({ tagged:  `[clean] ${text}` }),
+  }
+
+  const restored = fromJSON(json, registry)
+  const restored_values = await runGraph(restored)
+
+  const original = values.get('pipeline:result')
+  const roundtrip = restored_values.get('pipeline:result')
+  const match = original === roundtrip
+
+  console.log(`  original   →  "${original}"`)
+  console.log(`  round-trip →  "${roundtrip}"`)
+  console.log()
+  console.log(match ? '  ✓ MATCH — graph survived serialisation' : '  ✗ MISMATCH')
 })()
