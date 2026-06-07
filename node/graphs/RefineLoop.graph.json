@@ -1,0 +1,81 @@
+{
+  "nodes": [
+    {
+      "id": "$input",
+      "inputs": [],
+      "outputs": [
+        { "id": "prompt",  "type": "string" },
+        { "id": "system",  "type": "string", "optional": true }
+      ]
+    },
+    {
+      "id": "refine",
+      "description": "Iteratively refine a response until the model signals DONE",
+      "loop": true,
+      "inputs": [
+        { "id": "prompt", "type": "string" },
+        { "id": "system", "type": "string", "optional": true }
+      ],
+      "outputs": [
+        { "id": "response", "type": "string" }
+      ],
+      "sideEffects": ["llm", "network_access"],
+      "constraints": { "maxIterations": 5, "offlineCapable": false },
+      "subgraph": {
+        "nodes": [
+          {
+            "id": "$input",
+            "inputs": [],
+            "outputs": [
+              { "id": "prompt",   "type": "string" },
+              { "id": "system",   "type": "string",  "optional": true },
+              { "id": "response", "type": "string",  "optional": true }
+            ]
+          },
+          {
+            "id": "refine_draft",
+            "description": "Write or improve a draft response; appends [DONE] or [CONTINUE]",
+            "inputs": [
+              { "id": "prompt",   "type": "string" },
+              { "id": "system",   "type": "string",  "optional": true },
+              { "id": "response", "type": "string",  "optional": true }
+            ],
+            "outputs": [
+              { "id": "response", "type": "string" },
+              { "id": "continue", "type": "boolean" }
+            ],
+            "sideEffects": ["llm", "network_access"],
+            "constraints": { "offlineCapable": false }
+          },
+          {
+            "id": "$output",
+            "inputs": [
+              { "id": "response", "type": "string" },
+              { "id": "continue", "type": "boolean" }
+            ],
+            "outputs": []
+          }
+        ],
+        "edges": [
+          { "from": { "nodeId": "$input",       "portId": "prompt"   }, "to": { "nodeId": "refine_draft", "portId": "prompt"   } },
+          { "from": { "nodeId": "$input",       "portId": "system"   }, "to": { "nodeId": "refine_draft", "portId": "system"   } },
+          { "from": { "nodeId": "$input",       "portId": "response" }, "to": { "nodeId": "refine_draft", "portId": "response" } },
+          { "from": { "nodeId": "refine_draft", "portId": "response" }, "to": { "nodeId": "$output",      "portId": "response" } },
+          { "from": { "nodeId": "refine_draft", "portId": "continue" }, "to": { "nodeId": "$output",      "portId": "continue" } }
+        ]
+      }
+    },
+    {
+      "id": "$output",
+      "inputs": [
+        { "id": "response", "type": "string" }
+      ],
+      "outputs": []
+    }
+  ],
+  "edges": [
+    { "from": { "nodeId": "$input", "portId": "prompt"   }, "to": { "nodeId": "refine",  "portId": "prompt"   } },
+    { "from": { "nodeId": "$input", "portId": "system"   }, "to": { "nodeId": "refine",  "portId": "system"   } },
+    { "from": { "nodeId": "refine", "portId": "response" }, "to": { "nodeId": "$output", "portId": "response" } }
+  ]
+}

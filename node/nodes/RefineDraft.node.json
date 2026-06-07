@@ -1,0 +1,15 @@
+{
+  "id": "refine_draft",
+  "description": "Write or improve a draft response; appends [DONE] when satisfied, [CONTINUE] to request another pass",
+  "inputs": [
+    { "id": "prompt",   "type": "string" },
+    { "id": "system",   "type": "string",  "optional": true },
+    { "id": "response", "type": "string",  "optional": true }
+  ],
+  "outputs": [
+    { "id": "response", "type": "string" },
+    { "id": "continue", "type": "boolean" }
+  ],
+  "sideEffects": ["llm", "network_access"],
+  "constraints": { "offlineCapable": false }
+}

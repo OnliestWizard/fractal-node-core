@@ -120,6 +120,60 @@ function emitCallChain(graph: SerializedGraph, order: string[]): string {
   return lines.join('\n')
 }
 
+// ── Loop body emitter ────────────────────────────────────────────────────────
+
+function emitLoopBody(graph: SerializedGraph, order: string[], maxIter: number): string {
+  const inner: string[] = []
+  const varMap = new Map<string, string>()
+
+  const inputNode = graph.nodes.find(n => n.id === '$input')
+  if (inputNode) {
+    for (const port of inputNode.outputs) {
+      varMap.set(`$input:${port.id}`, `_state["${port.id}"]`)
+    }
+  }
+
+  for (const nodeId of order) {
+    const resultVar = `${nodeId}Out`
+    const inputEntries = graph.edges
+      .filter(e => e.to.nodeId === nodeId)
+      .map(e => {
+        const expr = varMap.get(`${e.from.nodeId}:${e.from.portId}`)
+          ?? `${e.from.nodeId}Out["${e.from.portId}"]`
+        return `            "${e.to.portId}" to ${expr}`
+      })
+    const inputArg = inputEntries.length
+      ? `mapOf(\n${inputEntries.join(',\n')}\n        )`
+      : 'emptyMap()'
+    inner.push(`        val ${resultVar} = ${nodeId}(${inputArg})`)
+    const node = graph.nodes.find(n => n.id === nodeId)!
+    for (const port of node.outputs) {
+      varMap.set(`${nodeId}:${port.id}`, `${resultVar}["${port.id}"]`)
+    }
+  }
+
+  const outputEdges = graph.edges.filter(e => e.to.nodeId === '$output')
+  if (outputEdges.length) {
+    const entries = outputEdges.map(e => {
+      const expr = varMap.get(`${e.from.nodeId}:${e.from.portId}`) ?? 'null'
+      return `            "${e.to.portId}" to ${expr}`
+    })
+    inner.push(`        _out = mapOf(\n${entries.join(',\n')}\n        )`)
+  }
+
+  return [
+    `    val _state = inputs.toMutableMap()`,
+    `    var _out: Map<String, Any?> = emptyMap()`,
+    `    for (_i in 0 until ${maxIter}) {`,
+    ...inner,
+    `        if (_out["continue"] != true) break`,
+    `        _state.putAll(_out)`,
+    `        _state.remove("continue")`,
+    `    }`,
+    `    return _out.filterKeys { it != "continue" }`,
+  ].join('\n')
+}
+
 // ── Module emitter ───────────────────────────────────────────────────────────
 // Subgraph nodes → separate .kt file (same package, no import needed).
 // Leaf nodes → private fun, inline in this file.
@@ -133,7 +187,8 @@ function ktFilename(moduleName: string): string {
 function emitModule(
   graph: SerializedGraph,
   moduleName: string,
-  files: EmittedFiles
+  files: EmittedFiles,
+  loopMaxIter?: number
 ): void {
   const order = topologicalSort(graph.nodes.map(n => n.id), graph.edges)
     .filter(id => id !== '$input' && id !== '$output')
@@ -144,20 +199,25 @@ function emitModule(
     const node = graph.nodes.find(n => n.id === nodeId)!
 
     if (node.subgraph) {
-      // Recurse — subgraph becomes its own file
-      emitModule(node.subgraph, nodeId, files)
-      // No local definition needed — same package, visible automatically
+      const childMaxIter = node.loop ? (node.constraints?.maxIterations ?? 10) : undefined
+      emitModule(node.subgraph, nodeId, files, childMaxIter)
     } else {
       localFunctions.push(emitLeafNode(node))
     }
   }
 
-  const hasInputBoundary = graph.nodes.some(n => n.id === '$input')
-  const param   = hasInputBoundary
-    ? 'inputs: Map<String, Any?>'
-    : 'inputs: Map<String, Any?> = emptyMap()'
-  const body    = emitCallChain(graph, order)
-  const wrapper = `suspend fun ${moduleName}(${param}): Map<String, Any?> {\n${body}\n}`
+  let wrapper: string
+  if (loopMaxIter !== undefined) {
+    const body = emitLoopBody(graph, order, loopMaxIter)
+    wrapper = `suspend fun ${moduleName}(inputs: Map<String, Any?>): Map<String, Any?> {\n${body}\n}`
+  } else {
+    const hasInputBoundary = graph.nodes.some(n => n.id === '$input')
+    const param = hasInputBoundary
+      ? 'inputs: Map<String, Any?>'
+      : 'inputs: Map<String, Any?> = emptyMap()'
+    const body  = emitCallChain(graph, order)
+    wrapper = `suspend fun ${moduleName}(${param}): Map<String, Any?> {\n${body}\n}`
+  }
 
   const header   = `// === ${moduleName} ===`
   const sections = [header, ...localFunctions, wrapper]

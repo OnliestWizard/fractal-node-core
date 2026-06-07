@@ -52,7 +52,11 @@ export interface NodeDefinition {
   constraints?: {
     offlineCapable?: boolean
     realtime?: boolean
+    maxIterations?: number
   }
+
+  // When true, the subgraph runs repeatedly until $output.continue === false
+  loop?: boolean
 
   // Runtime — either a leaf function or a subgraph, never both
   run?: (inputs: Record<string, any>) => any

@@ -118,13 +118,71 @@ function emitCallChain(graph: SerializedGraph, order: string[]): string {
   return lines.join('\n')
 }
 
+// ── Loop body emitter ────────────────────────────────────────────────────────
+// Builds the function body for a loop node: feeds $output back into $input
+// on each iteration until $output.continue is false or maxIter is reached.
+
+function emitLoopBody(graph: SerializedGraph, order: string[], maxIter: number): string {
+  const inner: string[] = []
+  const varMap = new Map<string, string>()
+
+  const inputNode = graph.nodes.find(n => n.id === '$input')
+  if (inputNode) {
+    for (const port of inputNode.outputs) {
+      varMap.set(`$input:${port.id}`, `_state.${port.id}`)
+    }
+  }
+
+  for (const nodeId of order) {
+    const resultVar = `${nodeId}_out`
+    const inputEntries = graph.edges
+      .filter(e => e.to.nodeId === nodeId)
+      .map(e => {
+        const expr = varMap.get(`${e.from.nodeId}:${e.from.portId}`)
+          ?? `${e.from.nodeId}_out.${e.from.portId}`
+        return `      ${e.to.portId}: ${expr}`
+      })
+    const inputArg = inputEntries.length
+      ? `{\n${inputEntries.join(',\n')}\n    }`
+      : '{}'
+    inner.push(`    const ${resultVar} = await ${nodeId}(${inputArg})`)
+    const node = graph.nodes.find(n => n.id === nodeId)!
+    for (const port of node.outputs) {
+      varMap.set(`${nodeId}:${port.id}`, `${resultVar}.${port.id}`)
+    }
+  }
+
+  const outputEdges = graph.edges.filter(e => e.to.nodeId === '$output')
+  if (outputEdges.length) {
+    const entries = outputEdges.map(e => {
+      const expr = varMap.get(`${e.from.nodeId}:${e.from.portId}`) ?? 'undefined'
+      return `      ${e.to.portId}: ${expr}`
+    })
+    inner.push(`    _out = {\n${entries.join(',\n')}\n    }`)
+  }
+
+  return [
+    `  let _state = { ...inputs }`,
+    `  let _out = {}`,
+    `  for (let _i = 0; _i < ${maxIter}; _i++) {`,
+    ...inner,
+    `    if (!_out.continue) break`,
+    `    Object.assign(_state, _out)`,
+    `    delete _state.continue`,
+    `  }`,
+    `  const { continue: _c, ..._final } = _out`,
+    `  return _final`,
+  ].join('\n')
+}
+
 // ── Module emitter: one file per subgraph, leaves inline ─────────────────────
 // Returns the import line the parent should use for this module.
 
 function emitModule(
   graph: SerializedGraph,
   moduleName: string,
-  files: EmittedFiles
+  files: EmittedFiles,
+  loopMaxIter?: number
 ): string {
   const order = topologicalSort(graph.nodes.map(n => n.id), graph.edges)
     .filter(id => id !== '$input' && id !== '$output')
@@ -137,7 +195,8 @@ function emitModule(
 
     if (node.subgraph) {
       // Subgraph → its own file. Recurse, collect import line.
-      const importLine = emitModule(node.subgraph, nodeId, files)
+      const childMaxIter = node.loop ? (node.constraints?.maxIterations ?? 10) : undefined
+      const importLine = emitModule(node.subgraph, nodeId, files, childMaxIter)
       importLines.push(importLine)
     } else {
       // Leaf → inline in this file.
@@ -145,10 +204,16 @@ function emitModule(
     }
   }
 
-  const hasInputBoundary = graph.nodes.some(n => n.id === '$input')
-  const param   = hasInputBoundary ? 'inputs' : 'inputs = {}'
-  const body    = emitCallChain(graph, order)
-  const wrapper = `export async function ${moduleName}(${param}) {\n${body}\n}`
+  let wrapper: string
+  if (loopMaxIter !== undefined) {
+    const body = emitLoopBody(graph, order, loopMaxIter)
+    wrapper = `export async function ${moduleName}(inputs) {\n${body}\n}`
+  } else {
+    const hasInputBoundary = graph.nodes.some(n => n.id === '$input')
+    const param = hasInputBoundary ? 'inputs' : 'inputs = {}'
+    const body  = emitCallChain(graph, order)
+    wrapper = `export async function ${moduleName}(${param}) {\n${body}\n}`
+  }
 
   const header   = `// === ${moduleName} ===`
   const sections = [header, ...importLines, ...localFunctions, wrapper]

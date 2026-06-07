@@ -35,7 +35,33 @@ async function executeGraph(
 
     let output: Record<string, any>
 
-    if (node.subgraph) {
+    if (node.subgraph && node.loop) {
+      const maxIter = node.constraints?.maxIterations ?? 10
+      const loopSeed = new Map<string, any>()
+      for (const port of node.inputs) {
+        loopSeed.set(`$input:${port.id}`, inputs[port.id])
+      }
+
+      output = {}
+      for (let i = 0; i < maxIter; i++) {
+        const innerValues = await executeGraph(node.subgraph, new Map(loopSeed), overrides, onNode, depth + 1)
+
+        output = {}
+        for (const edge of node.subgraph.edges) {
+          if (edge.to.nodeId !== '$output') continue
+          output[edge.to.portId] = innerValues.get(`${edge.from.nodeId}:${edge.from.portId}`)
+        }
+
+        if (!output.continue) break
+
+        for (const [key, val] of Object.entries(output)) {
+          if (key === 'continue') continue
+          loopSeed.set(`$input:${key}`, val)
+        }
+      }
+
+      delete output.continue
+    } else if (node.subgraph) {
       const innerSeed = new Map<string, any>()
       for (const port of node.inputs) {
         innerSeed.set(`$input:${port.id}`, inputs[port.id])
