@@ -1,0 +1,15 @@
+{
+  "id": "draft_writer",
+  "description": "Write a first draft or improve a previous one using judge feedback",
+  "inputs": [
+    { "id": "prompt",   "type": "string" },
+    { "id": "system",   "type": "string", "optional": true },
+    { "id": "draft",    "type": "string", "optional": true },
+    { "id": "feedback", "type": "string", "optional": true }
+  ],
+  "outputs": [
+    { "id": "response", "type": "string" }
+  ],
+  "sideEffects": ["llm", "network_access"],
+  "constraints": { "offlineCapable": false }
+}

@@ -1,0 +1,15 @@
+{
+  "id": "quality_judge",
+  "description": "Evaluate a draft against the original prompt — outputs DONE/CONTINUE and specific feedback",
+  "inputs": [
+    { "id": "prompt", "type": "string" },
+    { "id": "draft",  "type": "string" }
+  ],
+  "outputs": [
+    { "id": "response", "type": "string" },
+    { "id": "continue", "type": "boolean" },
+    { "id": "feedback", "type": "string" }
+  ],
+  "sideEffects": ["llm", "network_access"],
+  "constraints": { "offlineCapable": false }
+}

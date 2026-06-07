@@ -94,7 +94,14 @@ async function executeGraph(
 export async function runGraph(
   graph: IExecutionGraph,
   overrides: Record<string, Function> = {},
-  onNode?: NodeHook
+  onNode?: NodeHook,
+  inputs?: Record<string, any>
 ): Promise<Map<string, any>> {
-  return executeGraph(graph, new Map(), overrides, onNode, 0)
+  const seed = new Map<string, any>()
+  if (inputs) {
+    for (const [key, val] of Object.entries(inputs)) {
+      seed.set(`$input:${key}`, val)
+    }
+  }
+  return executeGraph(graph, seed, overrides, onNode, 0)
 }

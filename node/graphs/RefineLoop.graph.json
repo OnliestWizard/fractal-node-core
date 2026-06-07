@@ -4,13 +4,13 @@
       "id": "$input",
       "inputs": [],
       "outputs": [
-        { "id": "prompt",  "type": "string" },
-        { "id": "system",  "type": "string", "optional": true }
+        { "id": "prompt", "type": "string" },
+        { "id": "system", "type": "string", "optional": true }
       ]
     },
     {
       "id": "refine",
-      "description": "Iteratively refine a response until the model signals DONE",
+      "description": "Iteratively refine a response until quality_judge signals DONE",
       "loop": true,
       "inputs": [
         { "id": "prompt", "type": "string" },
@@ -28,21 +28,37 @@
             "inputs": [],
             "outputs": [
               { "id": "prompt",   "type": "string" },
-              { "id": "system",   "type": "string",  "optional": true },
-              { "id": "response", "type": "string",  "optional": true }
+              { "id": "system",   "type": "string", "optional": true },
+              { "id": "response", "type": "string", "optional": true },
+              { "id": "feedback", "type": "string", "optional": true }
             ]
           },
           {
-            "id": "refine_draft",
-            "description": "Write or improve a draft response; appends [DONE] or [CONTINUE]",
+            "id": "draft_writer",
+            "description": "Write a first draft or improve a previous one using judge feedback",
             "inputs": [
               { "id": "prompt",   "type": "string" },
-              { "id": "system",   "type": "string",  "optional": true },
-              { "id": "response", "type": "string",  "optional": true }
+              { "id": "system",   "type": "string", "optional": true },
+              { "id": "draft",    "type": "string", "optional": true },
+              { "id": "feedback", "type": "string", "optional": true }
+            ],
+            "outputs": [
+              { "id": "response", "type": "string" }
+            ],
+            "sideEffects": ["llm", "network_access"],
+            "constraints": { "offlineCapable": false }
+          },
+          {
+            "id": "quality_judge",
+            "description": "Evaluate the draft against the prompt — outputs DONE/CONTINUE and feedback",
+            "inputs": [
+              { "id": "prompt", "type": "string" },
+              { "id": "draft",  "type": "string" }
             ],
             "outputs": [
               { "id": "response", "type": "string" },
-              { "id": "continue", "type": "boolean" }
+              { "id": "continue", "type": "boolean" },
+              { "id": "feedback", "type": "string" }
             ],
             "sideEffects": ["llm", "network_access"],
             "constraints": { "offlineCapable": false }
@@ -51,17 +67,22 @@
             "id": "$output",
             "inputs": [
               { "id": "response", "type": "string" },
-              { "id": "continue", "type": "boolean" }
+              { "id": "continue", "type": "boolean" },
+              { "id": "feedback", "type": "string" }
             ],
             "outputs": []
           }
         ],
         "edges": [
-          { "from": { "nodeId": "$input",       "portId": "prompt"   }, "to": { "nodeId": "refine_draft", "portId": "prompt"   } },
-          { "from": { "nodeId": "$input",       "portId": "system"   }, "to": { "nodeId": "refine_draft", "portId": "system"   } },
-          { "from": { "nodeId": "$input",       "portId": "response" }, "to": { "nodeId": "refine_draft", "portId": "response" } },
-          { "from": { "nodeId": "refine_draft", "portId": "response" }, "to": { "nodeId": "$output",      "portId": "response" } },
-          { "from": { "nodeId": "refine_draft", "portId": "continue" }, "to": { "nodeId": "$output",      "portId": "continue" } }
+          { "from": { "nodeId": "$input",        "portId": "prompt"   }, "to": { "nodeId": "draft_writer",  "portId": "prompt"   } },
+          { "from": { "nodeId": "$input",        "portId": "system"   }, "to": { "nodeId": "draft_writer",  "portId": "system"   } },
+          { "from": { "nodeId": "$input",        "portId": "response" }, "to": { "nodeId": "draft_writer",  "portId": "draft"    } },
+          { "from": { "nodeId": "$input",        "portId": "feedback" }, "to": { "nodeId": "draft_writer",  "portId": "feedback" } },
+          { "from": { "nodeId": "$input",        "portId": "prompt"   }, "to": { "nodeId": "quality_judge", "portId": "prompt"   } },
+          { "from": { "nodeId": "draft_writer",  "portId": "response" }, "to": { "nodeId": "quality_judge", "portId": "draft"    } },
+          { "from": { "nodeId": "quality_judge", "portId": "response" }, "to": { "nodeId": "$output",       "portId": "response" } },
+          { "from": { "nodeId": "quality_judge", "portId": "continue" }, "to": { "nodeId": "$output",       "portId": "continue" } },
+          { "from": { "nodeId": "quality_judge", "portId": "feedback" }, "to": { "nodeId": "$output",       "portId": "feedback" } }
         ]
       }
     },

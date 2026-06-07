@@ -7,13 +7,14 @@ A graph-based execution engine where nodes are connected by typed edges and grap
 
 ---
 
-## Current state: WORKING — first agent graph built, 18 tests passing
+## Current state: WORKING — write/judge loop confirmed end-to-end, 18 tests passing
 
 ```
-npx tsx run.ts       # 3-level demo with execution tracing
-npx tsx emit.ts      # emits JS + Kotlin from CaptureAndTranscribe.graph.json
-npm test             # vitest run (18 tests, 6 files)
-npx tsc --noEmit     # type check (zero errors in project code)
+npx tsx run.ts                          # 3-level demo with execution tracing
+npx tsx emit.ts                         # emits JS + Kotlin from CaptureAndTranscribe.graph.json
+npx tsx run_agent.ts "your prompt"      # runs RefineLoop agent via OpenAI gpt-4o-mini (needs OPENAI_API_KEY)
+npm test                                # vitest run (18 tests, 6 files)
+npx tsc --noEmit                        # type check (zero errors in project code)
 ```
 
 ---
@@ -81,6 +82,31 @@ Kotlin: `Sanitize.kt`, `Pipeline.kt`, `Main.kt` — same structure, same package
 - **JS emitter**: `emitLoopBody` emits `for` loop with `_state` feedback object; `emitModule` detects `node.loop` and routes to it
 - **Kotlin emitter**: same pattern using `toMutableMap()` / `filterKeys`
 - **Convention**: subgraph must include a `continue: boolean` port on `$output`; anything else on `$output` is fed back as `$input` on the next iteration
+
+---
+
+## OpenAI provider + runner
+
+- **`node/capabilities/llm_reason_openai.ts`** — OpenAI drop-in for `llm_reason`; uses `gpt-4o-mini` streaming
+- **`node/capabilities/refine_draft_openai.ts`** — OpenAI drop-in for `refine_draft`; streams to stdout live, same `[DONE]`/`[CONTINUE]` parsing
+- **`run_agent.ts`** — CLI runner: loads `RefineLoop.graph.json`, registers OpenAI implementations, accepts prompt as argv, streams each draft iteration with headers showing pass number and continue/done decision
+- **`core/executor.ts`** — added `inputs?: Record<string, any>` param to `runGraph`; maps `{ prompt: 'x' }` → `$input:prompt` in the seed so top-level `$input` boundary nodes work without a wrapper leaf
+- **Provider swap pattern**: same graph JSON + same executor, different registry = different LLM provider. Anthropic and OpenAI implementations coexist in `node/capabilities/`
+- **Top-level await fix**: `run_agent.ts` wraps execution in `async function main()` — `tsconfig` uses `module: "CommonJS"` which doesn't support top-level await; tsx/esbuild throws without the wrapper
+- **Confirmed live**: agent ran end-to-end against real OpenAI API; `gpt-4o-mini` tends to mark `[DONE]` on first pass for most prompts — stricter `REFINE_INSTRUCTIONS` or more demanding prompts needed to trigger multi-iteration loops
+
+---
+
+## Two-agent write/judge loop
+
+- **Architecture**: `refine` subgraph now has two nodes — `draft_writer` (generates) and `quality_judge` (evaluates independently). Separation prevents the model from rationalizing its own output.
+- **Feedback port**: `quality_judge` outputs `{ response, continue, feedback }`. `feedback` flows back through the loop into `$input.feedback` → `draft_writer.feedback`. Writer receives specific fix instructions on every pass after the first.
+- **`draft_writer_openai.ts`**: first pass writes from scratch; subsequent passes include "Required fixes from quality review: ..." in the user message
+- **`quality_judge_openai.ts`**: `max_tokens: 256`, structured output format `VERDICT: DONE/CONTINUE\nFEEDBACK: ...`; passes `draft` through as `response`
+- **Confirmed live**: feedback loop runs correctly — judge outputs specific constraints, writer responds to them each iteration
+- **Model split**: judge runs on `gpt-4o` (accurate reasoning, checklist evaluation), writer runs on `gpt-4o-mini` (cheap, fast generation). Different nodes use different models — architecture supports this naturally via the registry
+- **Judge prompt**: checklist format forces explicit per-requirement evaluation with evidence before verdict; `max_tokens: 512`; feedback = only UNMET lines fed back to writer
+- **Confirmed end-to-end**: loop converged in 4 passes — judge caught word count (pass 1), opening constraint (pass 2), word count overcorrection (pass 3), DONE on pass 4. gpt-4o judge vs gpt-4o-mini judge was the decisive fix
 
 ---
 
