@@ -1,28 +1,17 @@
-### Project Status: fractal-node-core (Graph-Based Multi-Target Agent Compiler)
-`fractal-node-core` is a fully validated, platform-agnostic, recursive engine that compiles AI agent logic directly into pure, native target code (JS/ESM, Kotlin, Swift) without runtime bridges or wrappers. The project features a true fractal architecture where a node can recursively encapsulate a subgraph (`NodeDefinition.subgraph` shares the `IExecutionGraph` interface).
 
-#### 1. CURRENT CURRENT WORKING STATE (100% Tested)
-* **Robust Test Suite:** 98 passing vitest tests across 13 files covering parallel execution, routing, agent loops, serialization, and cross-platform emitters.
-* **Air-Tight Static Validation (`core/validator.ts`):** Pre-execution pass detecting `unknown_node_ref`, `unknown_port_ref`, `type_mismatch` (with `any` fallback), `disconnected_input`, `multiple_inputs`, and full DFS recursive loop/cycle detection returning exact node path lists.
-* **Mutually Exclusive Execution Modes:**
-  * `run`: Stateful/stateless leaf capability implementations mapped at runtime via a decoupled `RuntimeRegistry`.
-  * `subgraph` (+ `loop: true`): Sequentially loops an inner graph tracking feedback ports and halting safely via `$output.continue === false` or a structural `constraints.maxIterations` ceiling.
-  * `branches` (+ `router: true`): Dynamically resolves and evaluates conditional subgraphs by mapping runtime inputs to stringified keys (e.g., `"true"`/`"false"` or named branches).
-  * `tools` (+ `agent: true`): Native multi-turn autonomous LLM loop. Compiles `NodeDefinition[]` tool arrays dynamically into OpenAI schema tools, executes tool calls in parallel using dependency resolution, tracks state up to `maxTurns`, and exposes a string-based `model` parameter mapping directly from the serialization boundary.
-* **Verified End-to-End CLI Agents:** * `RefineLoop`: Writer/Judge autonomous self-correction loop (converges successfully in live runs).
-  * `MemoryOrFetch`: Router-based cache agent that dynamically selects a fast local read branch vs. a live web-scrape-and-write branch based on storage state.
-  * `ToolAgent`: Full tool-calling executor exposing `http_fetch`, `memory_read`, and `memory_write` to an LLM.
 
-#### 2. EMISSION MODEL & IMPLEMENTATION DETAIL
-The engine functions similarly to an LLVM infrastructure: Graph JSON acts as the Intermediary Representation (IR), and emitters behave like platform-specific backends. Subgraphs and branches emit into a clean modular file directory hierarchy matching the architecture, while leaf nodes are gracefully inlined. 
-* **JS Target:** Outputs clean modern ES Modules utilizing native `fetch` and `localStorage`.
-* **Kotlin Target:** Outputs idiomatic structured concurrency via `suspend fun` using `OkHttp` and file-based state serialization.
-* **Swift Target:** Outputs modern iOS/macOS code utilizing `async throws`, standard `URLSession`, and `UserDefaults` storage.
-Loops are emitted using flat, highly performant variable-tracking conditional scopes to completely isolate memory allocation footprints on mobile targets.
 
-#### 3. STRATEGIC VISION & IMMEDIATE ROADMAP
-The long-term objective is to establish the industry-standard "Compiler Infrastructure for Cross-Platform AI Agents," decoupling orchestration design from physical deployment constraints. To scale this prototype into a full production eco-system, development will focus on four explicit phases:
-* **Compiler-as-a-Service Execution Server:** A high-throughput API exposing `POST /validate` and `POST /emit/:platform` endpoints, featuring cloud-level request-throttling/queueing layers to mitigate provider rate limits (like HTTP 429 errors encountered during dense parallel tool calls), and returning a structured multi-file payload manifest.
-* **Strict Binary/Data Serialization Layer:** Implementing a unified cross-platform serialization standard (such as Protocol Buffers or a rigid schema-mapping protocol) to pass complex binary objects like `audio` or `image` streams seamlessly over native target boundaries without a bridge layer.
-* **Cross-Platform Telemetry/Tracing Protocol:** Standardizing a universal execution telemetry contract (`onNodeStart`, `onNodeError`) emitted directly into target files to allow real-time debugging and visual instrumentation of native mobile apps from an external host.
-* **Fractal Visual Editor (Infinite Zoom UI):** A local-first, reactive editor built on an abstraction like React Flow. Leverages the recursive nature of the engine to allow an "infinite portal zoom" into nested subgraphs, bounding internal workspaces visually with immutable left-column `$input` and right-column `$output` anchor blocks, while executing background validations dynamically on every canvas edge-mutation.
+
+### Core Architecture & State Summary: `fractal-node-core`
+`fractal-node-core` is a fully tested (135 passing tests), platform-agnostic, recursive agent compiler that treats visual workflows as an Intermediate Representation (IR), completely decoupling agent topology from execution. Instead of relying on heavy cloud runtime environments or sluggish JavaScript engines, it compiles complex agent behaviors (loops, parallel execution, tool utilization) directly into pure, native target primitives (`async/await` in modern JS/ESM, `suspend fun` in Kotlin via OkHttp, and `async throws` in Swift via URLSession) with zero runtime overhead—making it uniquely suited for low-overhead mobile apps, private offline on-device execution, and self-assembling autonomous agent networks.
+
+#### ⚙️ Verified Working Capabilities
+* **True Fractal Recursion:** A node's inner subgraph directly satisfies the top-level execution interface (`NodeDefinition.subgraph` shares the `IExecutionGraph` schema), allowing infinite nesting depths bounded by static `$input` and `$output` boundary nodes.
+* **Mutually Exclusive Execution Engine:** Handles stateless leaf nodes via a `RuntimeRegistry`, looping subgraphs controlled by feedback tracking or max-iteration caps, dynamic string-coerced conditional branching routers (`MemoryOrFetch`), and multi-turn autonomous tool-calling loops (`ToolAgent`) mapping directly to OpenAI schema definitions.
+* **Air-Tight Pre-Execution Validation (`core/validator.ts`):** Catches critical logical flaws before compilation, running an active DFS engine to check for `unknown_node_ref`, `unknown_port_ref`, `disconnected_input`, `multiple_inputs`, `type_mismatch` (with `any` fallbacks), and explicit structural cycles across recursive scopes.
+* **Bi-Directional IDE Ecosystem:** Connects an ultra-lean Express server (port 3000) to a highly reactive, auto-layouting Vite + React Flow canvas (port 5173). Features live execution streaming over Server-Sent Events (SSE via `/run/stream`) that animates node debugging states (yellow for processing, green for success, red for failures) natively in the UI.
+
+#### 🚀 Strategic Future Directions
+1. **The Autonomous "Software Plant":** Giving coordinator LLMs access to the JSON schema and validation API so they can procedurally draft, statically verify, and compile their own optimized child-agent graphs on the fly to tackle sub-tasks safely without writing loose code scripts.
+2. **Local-First & Edge Computing Play:** Utilizing the ultra-lean native code output to embed complex agent flows directly onto low-power hardware, mobile applications, or offline IoT devices executing local, privacy-centric language models entirely detached from the cloud.
+3. **Interactive UI Canvas Builder:** Adding an active "Edit Mode" to the frontend that pulls from the server's `GET /capabilities` endpoint, allowing drag-and-drop node placement alongside real-time edge-mutation type validation.
