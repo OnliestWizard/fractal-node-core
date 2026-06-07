@@ -14,6 +14,23 @@ export interface SerializedGraph {
 // Boundary nodes ($input, $output) and subgraph nodes do not need entries.
 export type RuntimeRegistry = Record<string, (inputs: Record<string, any>) => any>
 
+function collectLeafIds(data: SerializedGraph): string[] {
+  const ids: string[] = []
+  for (const node of data.nodes) {
+    if (node.id === '$input' || node.id === '$output') continue
+    if (node.subgraph) {
+      ids.push(...collectLeafIds(node.subgraph))
+    } else {
+      ids.push(node.id)
+    }
+  }
+  return ids
+}
+
+export function validateRegistry(data: SerializedGraph, registry: RuntimeRegistry): string[] {
+  return collectLeafIds(data).filter(id => !registry[id])
+}
+
 export function serialize(graph: IExecutionGraph): SerializedGraph {
   const nodes: SerializedNode[] = []
 
@@ -28,6 +45,11 @@ export function serialize(graph: IExecutionGraph): SerializedGraph {
 }
 
 export function deserialize(data: SerializedGraph, registry: RuntimeRegistry): ExecutionGraph {
+  const missing = validateRegistry(data, registry)
+  if (missing.length) {
+    console.warn(`[fractal] missing registry entries for leaf nodes: ${missing.join(', ')}`)
+  }
+
   const graph = new ExecutionGraph()
 
   for (const { subgraph, ...contract } of data.nodes) {

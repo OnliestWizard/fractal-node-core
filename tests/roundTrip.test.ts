@@ -1,11 +1,13 @@
-import node from '../node/nodes/CaptureAudio.node.json'
-import { emitKotlin } from '../emitters/android/emitKotlin'
-import { emitJS } from '../emitters/web/emitJS'
+import { test, expect } from 'vitest'
+import { emitGraphJS } from '../emitters/web/emitGraphJS'
+import { emitGraphKotlin } from '../emitters/android/emitKotlin'
+import type { SerializedGraph } from '../core/serializer'
+import graph from '../node/graphs/CaptureAndTranscribe.graph.json'
 
-test('node survives multi-runtime emission', () => {
-  const kotlin = emitKotlin(node as any)
-  const js = emitJS(node as any)
+test('graph emits to both JS and Kotlin', () => {
+  const js = emitGraphJS(graph as SerializedGraph)
+  const kotlin = emitGraphKotlin(graph as SerializedGraph)
 
-  expect(kotlin).toContain('capture_audio')
-  expect(js).toContain('capture_audio')
+  expect(js['index.js']).toContain('capture_audio')
+  expect(kotlin['Main.kt']).toContain('capture_audio')
 })

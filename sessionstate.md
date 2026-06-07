@@ -7,11 +7,12 @@ A graph-based execution engine where nodes are connected by typed edges and grap
 
 ---
 
-## Current state: WORKING — emitters real, 3 levels deep confirmed
+## Current state: WORKING — test suite live, registry validation in
 
 ```
 npx tsx run.ts       # 3-level demo with execution tracing
 npx tsx emit.ts      # emits JS + Kotlin from CaptureAndTranscribe.graph.json
+npm test             # vitest run (5 tests, 3 files)
 npx tsc --noEmit     # type check (zero errors)
 ```
 
@@ -53,16 +54,21 @@ Kotlin: `Sanitize.kt`, `Pipeline.kt`, `Main.kt` — same structure, same package
 
 ## Serialisation
 - `core/serializer.ts` — `SerializedGraph` (pure JSON, no Maps/functions), `RuntimeRegistry` (leaf implementations), `serialize` / `deserialize` / `toJSON` / `fromJSON`
+- `validateRegistry(data, registry)` — returns IDs of leaf nodes missing from registry (skips boundary + subgraph nodes recursively); exported for explicit pre-flight checks
+- `deserialize` calls `validateRegistry` automatically and `console.warn`s missing IDs at load time, not execution time
 - Topology (graph JSON) and implementations (registry) are separate. Graph files are portable; registry wires in platform-specific code.
 - Round-trip verified: `"[clean] hello world"` matches after full JSON cycle across 3 levels.
 
 ---
 
-## Known issues
-- `tests/` — stubs that reference missing files, no test runner installed; excluded from tsconfig
+## Tests (`npm test`)
+| File | What it covers |
+|---|---|
+| `tests/graphExecution.test.ts` | `emitGraphJS` preserves topo order in output |
+| `tests/roundTrip.test.ts` | graph emits to both JS and Kotlin |
+| `tests/registry.test.ts` | `validateRegistry` returns correct missing IDs; `deserialize` warns / stays silent |
 
 ---
 
-## Up next
-- [ ] Set up jest/vitest and fix the test stubs
-- [ ] Registry validation — warn if a leaf node has no implementation before running
+## Known issues
+- none
