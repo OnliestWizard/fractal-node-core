@@ -7,7 +7,7 @@ A graph-based execution engine where nodes are connected by typed edges and grap
 
 ---
 
-## Current state: WORKING — 98 tests passing, 13 test files
+## Current state: WORKING — 113 tests passing, 14 test files
 
 ```
 npx tsx run.ts                                            # 3-level demo with execution tracing
@@ -18,7 +18,8 @@ npx tsx run_memory.ts write "https://..." "question"      # ResearchAndRemember:
 npx tsx run_memory.ts read "https://..."                  # Recall: read stored answer by key
 npx tsx run_tool_agent.ts "your prompt"                   # ToolAgent: LLM-driven tool-calling loop
 npx tsx run_memory_or_fetch.ts "https://..." "question"   # MemoryOrFetch: cache-hit/miss router demo
-npm test                                                  # vitest run (98 tests, 13 files)
+npm run server                                            # start execution server on port 3000
+npm test                                                  # vitest run (113 tests, 14 files)
 npx tsc --noEmit                                          # type check (zero errors in project code)
 ```
 
@@ -176,6 +177,7 @@ Kotlin: `Sanitize.kt`, `Pipeline.kt`, `Main.kt` — same structure, same package
 | `tests/agent.test.ts` | single-turn, tool call + final answer, parallel multi-tool, maxTurns ceiling, overrides, unknown tool throws, serialization round-trip, registry validation, emitter stubs |
 | `tests/validator.test.ts` | all 6 error types, optional ports, $input exemption, cycle detection with node list, recursive subgraph validation, all real graphs pass clean |
 | `tests/swift.test.ts` | file naming, URLSession, UserDefaults read/write, loop structure, router dispatch, agent stub, async throws signatures, serialize→emit round-trip |
+| `tests/server.test.ts` | /health, /capabilities shape, /validate valid+invalid graphs, /emit js+kotlin+swift+unknown, /run success+invalid graph+missing leaf+missing body |
 
 ---
 
@@ -212,6 +214,26 @@ Kotlin: `Sanitize.kt`, `Pipeline.kt`, `Main.kt` — same structure, same package
 ## LLM node (`llm_reason`)
 - **Contract**: `node/nodes/LLMReason.node.json` — inputs: `prompt`, `system?`; output: `response`; sideEffects: `["llm", "network_access"]`
 - **Implementation**: `node/capabilities/llm.ts` — wraps Anthropic SDK, adaptive thinking, streaming
+
+---
+
+## Execution server (`server.ts`)
+
+`createApp()` returns an Express app; `npm run server` starts it on port 3000.
+
+| Route | Method | What it does |
+|---|---|---|
+| `/health` | GET | `{ ok: true }` |
+| `/capabilities` | GET | Returns `CATALOG` — array of `NodeContract` for all built-in nodes |
+| `/validate` | POST | `{ graph }` → `{ valid, errors }` — runs `validateGraph`, 400 if no graph |
+| `/emit/:platform` | POST | `{ graph }` → `{ files }` — `js`/`kotlin`/`swift`; 400 for unknown platform |
+| `/run` | POST | `{ graph, inputs? }` → `{ outputs }` — validates, checks registry, deserializes, executes |
+
+`/run` error codes: 400 (missing body), 422 (validation failure or missing registry leaf), 500 (runtime error).
+
+Built-in registry: `http_fetch`, `research_answer`, `draft_writer`, `quality_judge`, `memory_read`, `memory_write`, `passthrough`.
+
+All OpenAI capability files use lazy init (`let _client; const client = () => (_client ??= new OpenAI())`) — no crash on import without API key, safe for test environments.
 
 ---
 

@@ -1,6 +1,7 @@
 import OpenAI from 'openai'
 
-const client = new OpenAI()
+let _client: OpenAI | undefined
+const client = () => (_client ??= new OpenAI())
 
 const JUDGE_SYSTEM = `You are a strict quality judge. Given an original prompt and a response draft:
 
@@ -26,7 +27,7 @@ Rules:
 - If all requirements are MET, verdict is DONE. If any are UNMET, verdict is CONTINUE.`
 
 export async function quality_judge(inputs: Record<string, any>): Promise<{ response: string; continue: boolean; feedback: string }> {
-  const completion = await client.chat.completions.create({
+  const completion = await client().chat.completions.create({
     model: 'gpt-4o',
     max_tokens: 512,
     messages: [

@@ -1,9 +1,10 @@
 import OpenAI from 'openai'
 
-const client = new OpenAI()
+let _client: OpenAI | undefined
+const client = () => (_client ??= new OpenAI())
 
 export async function research_answer(inputs: Record<string, any>): Promise<{ response: string }> {
-  const stream = await client.chat.completions.create({
+  const stream = await client().chat.completions.create({
     model: 'gpt-4o-mini',
     stream: true,
     messages: [

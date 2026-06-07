@@ -1,6 +1,7 @@
 import OpenAI from 'openai'
 
-const client = new OpenAI()
+let _client: OpenAI | undefined
+const client = () => (_client ??= new OpenAI())
 
 export async function draft_writer(inputs: Record<string, any>): Promise<{ response: string }> {
   const hasDraft = Boolean(inputs.draft)
@@ -8,7 +9,7 @@ export async function draft_writer(inputs: Record<string, any>): Promise<{ respo
     ? `Original prompt:\n${inputs.prompt}\n\nPrevious draft:\n${inputs.draft}\n\nRequired fixes from quality review:\n${inputs.feedback}`
     : String(inputs.prompt)
 
-  const stream = await client.chat.completions.create({
+  const stream = await client().chat.completions.create({
     model: 'gpt-4o-mini',
     stream: true,
     messages: [
