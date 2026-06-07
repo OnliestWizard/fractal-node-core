@@ -1,6 +1,6 @@
-import { NodeDefinition, Edge } from './types'
+import { NodeDefinition, Edge, IExecutionGraph } from './types'
 
-export class ExecutionGraph {
+export class ExecutionGraph implements IExecutionGraph {
   nodes = new Map<string, NodeDefinition>()
   edges: Edge[] = []
 

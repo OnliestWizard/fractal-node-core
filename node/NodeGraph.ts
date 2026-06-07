@@ -1,11 +1,6 @@
-export type NodeRef = {
-  nodeId: string
-}
+import type { NodeId, Edge } from '../core/types'
 
-export type Edge = {
-  from: { nodeId: string; output: string }
-  to: { nodeId: string; input: string }
-}
+export type NodeRef = { nodeId: NodeId }
 
 export type NodeGraph = {
   graphId: string

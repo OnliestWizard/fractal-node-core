@@ -1,7 +1,7 @@
 import { ExecutionNode } from '../../node/NodeSchema'
 
 export function emitJS(node: ExecutionNode): string {
-  if (!node.sideEffects.includes('microphone')) {
+  if (!node.sideEffects?.includes('microphone')) {
     throw new Error('Unsupported node for Web emitter')
   }
 

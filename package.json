@@ -1,0 +1,12 @@
+{
+  "name": "fractal-node-core",
+  "version": "0.1.0",
+  "description": "Execution-first, language-agnostic logic nodes with fractal subgraph composition",
+  "scripts": {
+    "demo": "tsx run.ts"
+  },
+  "devDependencies": {
+    "tsx": "^4.19.2",
+    "typescript": "^5.7.3"
+  }
+}

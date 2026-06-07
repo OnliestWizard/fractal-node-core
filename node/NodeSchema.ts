@@ -1,26 +1,2 @@
-export type ExecutionNode = {
-  id: string
-  intent: string
-
-  inputs: Record<string, {
-    type: string
-    required: boolean
-  }>
-
-  outputs: Record<string, {
-    type: string
-  }>
-
-  sideEffects: Array<
-    | 'hardware_access'
-    | 'filesystem_write'
-    | 'network_access'
-    | 'microphone'
-    | 'camera'
-  >
-
-  constraints?: {
-    offlineCapable?: boolean
-    realtime?: boolean
-  }
-}
+// ExecutionNode is an alias for NodeDefinition — kept for backwards compatibility with emitters.
+export type { NodeDefinition as ExecutionNode } from '../core/types'
