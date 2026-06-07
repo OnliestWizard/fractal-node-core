@@ -48,3 +48,23 @@ The runtime adds:
 - Context
 
 Result: agents become portable graph assets that can be stored in Git, versioned, serialized, emitted, shared, modified by other agents, and executed on any platform using the same fractal graph structure.
+
+
+## Open Architectural Decision
+
+Execution Model
+
+Current:
+- DAG only
+- Topological execution
+
+Options:
+1. DAG only
+2. DAG + explicit LoopNode
+3. General cyclic graph
+
+Current recommendation:
+DAG + LoopNode
+
+Reason:
+Preserves deterministic execution, simple emitters, simple serialization, and supports agent refinement loops without abandoning topological execution.
