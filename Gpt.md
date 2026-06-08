@@ -1,70 +1,71 @@
-AGENT RUNTIME VISION
+Before writing any more code, I want to lock in the architecture.
 
-fractal-node-core becomes the execution engine for graph-defined agents.
+Current state:
 
-Keep the core engine generic. Agent behavior comes from capabilities registered in the RuntimeRegistry (llm_reason, web_search, file_read, github_commit, etc.).
+✓ Recursive graph execution works
+✓ Graphs can contain graphs (NodeDefinition.subgraph)
+✓ Serialization/deserialization works
+✓ Registry validation works
+✓ JS and Kotlin emitters work
+✓ Planner agent can synthesize valid graphs
+✓ Validator + self-correction loop can repair graphs
+✓ MCP tool catalog is loading successfully
 
-An agent is just a graph:
+The project is no longer a graph library.
 
-Goal
- ↓
-Planner
- ↓
-Research
- ↓
-Evaluate
- ↓
-Act
- ↓
-Verify
+Treat it as an AGENT RUNTIME.
 
-Each step can itself be a subgraph, recursively:
+Core philosophy:
 
-Research
- ├─ Search
- ├─ Read
- └─ Summarize
+Repository
+ ├─ Memory
+ ├─ Tool Catalog
+ ├─ Graph Definitions
+ ├─ Agent Definitions
+ ├─ Execution Traces
+ └─ Runtime
 
-Act
- ├─ Write File
- ├─ Open PR
- └─ Send Message
+Agents should be portable.
 
-Because NodeDefinition.subgraph is IExecutionGraph, agents can decompose into smaller agents indefinitely while using the same execution model at every level.
+An agent should be able to enter a repository, discover capabilities, discover memory, discover graphs, and compose new graphs from available resources.
 
-The engine remains responsible only for:
-- Execution
-- Serialization
-- Validation
-- Emission
-- Tracing
+The repository provides context.
+The agent provides reasoning.
 
-The runtime adds:
-- LLM access
-- Tool access
-- Memory
-- Permissions
-- Retries
-- Context
+Immediate task:
 
-Result: agents become portable graph assets that can be stored in Git, versioned, serialized, emitted, shared, modified by other agents, and executed on any platform using the same fractal graph structure.
+Build run_execute.ts.
 
+Requirements:
 
-## Open Architectural Decision
+1. Read generated graph JSON.
+2. Topologically execute nodes.
+3. Maintain wire state as:
+   nodeId:portId -> value
+4. Feed $input from CLI-provided inputs.
+5. Execute MCP tools using their namespaced IDs.
+6. Pass outputs through graph edges.
+7. Capture full execution trace:
+   - node
+   - inputs
+   - outputs
+   - timing
+   - errors
+8. Write trace to disk.
+9. Return final $output values.
 
-Execution Model
+Design goals:
 
-Current:
-- DAG only
-- Topological execution
+- Execution must be inspectable.
+- Every value flowing through the graph should be traceable.
+- Runtime should not contain hardcoded tool logic.
+- Tools are discovered from the catalog.
+- Planner produces graphs.
+- Runtime executes graphs.
+- Validator protects runtime.
 
-Options:
-1. DAG only
-2. DAG + explicit LoopNode
-3. General cyclic graph
+Open architecture question:
 
-Current recommendation:
-DAG + LoopNode
+Should loops remain forbidden DAG violations, or should loops become first-class nodes (ForEach, While, Retry, Router) so execution graphs remain acyclic while still supporting iterative behavior?
 
-Reason:
-Preserves deterministic execution, simple emitters, simple serialization, and supports agent refinement loops without abandoning topological execution.
+Please analyze this architecture critically before implementing run_execute.ts and identify any missing runtime concepts.
