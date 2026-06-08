@@ -1,17 +1,33 @@
+### 🧠 Strategic Architectural Analysis & Execution Plan
 
+#### 🏗️ The Critical Diagnostic: Dynamic Loop Support (The Fork in the Road)
+To prevent your Graph IR from breaking into chaotic, un-trackable cycles, **loops must remain strictly forbidden as structural edge cycles in the DAG, but supported completely via First-Class Flow Nodes.** * **The Architecture Rule:** The graph topology remains an absolutely acyclic, topologically sortable DAG. Iterative behavior (`ForEach`, `While`, `Retry`) is encapsulated *inside* the execution boundaries of a specific node definition. 
+* **Why this is crucial for your 4GB RAM machine:** If loops are drawn as raw backward structural edges, your topological sorter (`Kahn's algorithm`) instantly breaks, execution state tracking overflows, and parallel dependency resolving becomes algorithmically impossible. By enforcing an acyclic top-level structure and handling iterations as scoped, state-isolated inner runner loops, the runtime maintains a predictable memory footprint and clean, deterministic event tracing.
 
+#### 🎯 Missed Runtime Concepts (Fix Before Coding `run_execute.ts`)
+1. **The Object Injection Bridge (Structural Type Coercion):** As Claude noted in item 4, primitive string types (like `directory_path`) will crash when hitting MCP schemas expecting structured objects. The runtime needs a lightweight, silent auto-boxing layer: if an incoming edge drops a primitive value into a port expecting an `object`, wrap it automatically as ` { value: X } ` or map it to the first top-level property of the tool's schema.
+2. **Persistent STDIO Standard Stream Multiplexing:** If `run_execute.ts` spawns a new shell process for your MCP filesystem server every single time an individual node executes, it will leak memory and run incredibly slowly. Connected MCP child processes must be initialized *once* at runtime startup, held open in a stateful connection pool, multiplexed during execution, and cleanly terminated at the final `$output` boundary.
+3. **Upstream Error Isolation & Cascading Halts:** If a file-read tool fails midway through a 5-node pipeline, how does the runtime react? You need to explicitly catch leaf failures, write a partial `error` event block to your trace log, and instantly abort downstream dependent nodes while avoiding a full engine crash.
 
-
-### Core Architecture & State Summary: `fractal-node-core`
-`fractal-node-core` is a fully tested (135 passing tests), platform-agnostic, recursive agent compiler that treats visual workflows as an Intermediate Representation (IR), completely decoupling agent topology from execution. Instead of relying on heavy cloud runtime environments or sluggish JavaScript engines, it compiles complex agent behaviors (loops, parallel execution, tool utilization) directly into pure, native target primitives (`async/await` in modern JS/ESM, `suspend fun` in Kotlin via OkHttp, and `async throws` in Swift via URLSession) with zero runtime overhead—making it uniquely suited for low-overhead mobile apps, private offline on-device execution, and self-assembling autonomous agent networks.
-
-#### ⚙️ Verified Working Capabilities
-* **True Fractal Recursion:** A node's inner subgraph directly satisfies the top-level execution interface (`NodeDefinition.subgraph` shares the `IExecutionGraph` schema), allowing infinite nesting depths bounded by static `$input` and `$output` boundary nodes.
-* **Mutually Exclusive Execution Engine:** Handles stateless leaf nodes via a `RuntimeRegistry`, looping subgraphs controlled by feedback tracking or max-iteration caps, dynamic string-coerced conditional branching routers (`MemoryOrFetch`), and multi-turn autonomous tool-calling loops (`ToolAgent`) mapping directly to OpenAI schema definitions.
-* **Air-Tight Pre-Execution Validation (`core/validator.ts`):** Catches critical logical flaws before compilation, running an active DFS engine to check for `unknown_node_ref`, `unknown_port_ref`, `disconnected_input`, `multiple_inputs`, `type_mismatch` (with `any` fallbacks), and explicit structural cycles across recursive scopes.
-* **Bi-Directional IDE Ecosystem:** Connects an ultra-lean Express server (port 3000) to a highly reactive, auto-layouting Vite + React Flow canvas (port 5173). Features live execution streaming over Server-Sent Events (SSE via `/run/stream`) that animates node debugging states (yellow for processing, green for success, red for failures) natively in the UI.
-
-#### 🚀 Strategic Future Directions
-1. **The Autonomous "Software Plant":** Giving coordinator LLMs access to the JSON schema and validation API so they can procedurally draft, statically verify, and compile their own optimized child-agent graphs on the fly to tackle sub-tasks safely without writing loose code scripts.
-2. **Local-First & Edge Computing Play:** Utilizing the ultra-lean native code output to embed complex agent flows directly onto low-power hardware, mobile applications, or offline IoT devices executing local, privacy-centric language models entirely detached from the cloud.
-3. **Interactive UI Canvas Builder:** Adding an active "Edit Mode" to the frontend that pulls from the server's `GET /capabilities` endpoint, allowing drag-and-drop node placement alongside real-time edge-mutation type validation.
+#### 🖨️ Complete Blueprint for `run_execute.ts` Implementation
+* **CLI Interface:** Accept parameters via flat strings, parsing inputs safely: `npx tsx run_execute.ts --graph ./graph.json --inputs '{"directory_path":"C:/Users"}' --out ./trace.json`
+* **Isolated Wire State Map:** Track execution progress using a flat, immutable dictionary structure: `Record<string, any>` where the lookups map explicitly to `"nodeId:portId"`.
+* **The Unified Dispatched Runner:**
+  ```typescript
+  // Core runtime execution dispatcher block inside run_execute.ts
+  async function executeNode(node: SerializedNode, currentWireState: Map<string, any>, mcpPool: MCPProcessPool) {
+    if (node.id.includes('__')) {
+      const [serverName, toolName] = node.id.split('__');
+      const rawInputs = gatherInputsForNode(node, currentWireState);
+      const coercedInputs = typeof rawInputs !== 'object' ? { value: rawInputs } : rawInputs;
+      
+      const startTime = performance.now();
+      try {
+        const mcpResult = await mcpPool.getConnection(serverName).callTool(toolName, coercedInputs);
+        return { result: mcpResult, duration: performance.now() - startTime, error: null };
+      } catch (err) {
+        return { result: null, duration: performance.now() - startTime, error: err.message };
+      }
+    }
+    // Fall back to native primitive processing ($input, $output, passthrough)
+  }
