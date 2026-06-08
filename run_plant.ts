@@ -53,6 +53,12 @@ const BUILTIN_CATALOG = [
     inputs:  [{ id: 'value', type: 'any' }],
     outputs: [{ id: 'value', type: 'any' }],
   },
+  {
+    id: 'split_lines',
+    description: 'Split newline-separated text into a paths array. Output "result" is {paths:[...]} — connect directly to an MCP params port.',
+    inputs:  [{ id: 'text', type: 'string' }],
+    outputs: [{ id: 'result', type: 'object' }, { id: 'count', type: 'number' }],
+  },
 ]
 
 const SYSTEM = `You are a graph compiler. Design execution graphs for AI agent workflows.
@@ -87,6 +93,38 @@ Hard rules:
 
 Available leaf nodes — use these ids exactly, and copy their port shapes faithfully:
 CATALOG_PLACEHOLDER
+
+Control-flow nodes (optional, for iteration):
+You may embed a subgraph inside a node to create loops. Each subgraph is a full SerializedGraph with its own $input / $output boundary nodes.
+
+ForEach node — runs the subgraph once per item in an array:
+  Add "forEach": true to the node.
+  The node's inputs must include { "id": "items", "type": "object" } (a JSON array or {paths:[...]} object).
+  The subgraph's $input must expose { "id": "item", "type": "any" }; additional parent inputs are forwarded automatically.
+  The node's outputs: [{ "id": "results", "type": "object" }] — an array of per-item result objects.
+  Example shape:
+  { "id": "process_each", "forEach": true,
+    "inputs":  [{"id":"items","type":"object"}],
+    "outputs": [{"id":"results","type":"object"}],
+    "subgraph": {
+      "nodes": [
+        {"id":"$input","inputs":[],"outputs":[{"id":"item","type":"any"}]},
+        ...leaf nodes...,
+        {"id":"$output","inputs":[{"id":"result","type":"any"}],"outputs":[]}
+      ],
+      "edges": [...]
+    }
+  }
+
+While node — runs the subgraph until $output.continue is false:
+  Add "loop": true and "constraints": {"maxIterations": N} to the node.
+  The subgraph's $output must include { "id": "continue", "type": "boolean" }.
+  All other subgraph outputs feed back as the next iteration's $input (same port names).
+  The while node's inputs / outputs mirror the initial-state / final-state ports.
+
+Retry node — retries the subgraph on exception:
+  Add "retry": true and "constraints": {"maxRetries": N} to the node.
+  The subgraph is re-run up to maxRetries+1 times total; throws if all attempts fail.
 
 Return ONLY valid JSON — no markdown fences, no explanation. The root object must be the SerializedGraph.`
 

@@ -55,10 +55,17 @@ export interface NodeDefinition {
     realtime?: boolean
     maxIterations?: number
     maxTurns?: number
+    maxRetries?: number
   }
 
   // When true, the subgraph runs repeatedly until $output.continue === false
   loop?: boolean
+
+  // When true, runs the subgraph once per item in inputs.items; outputs { results: item_outputs[] }
+  forEach?: boolean
+
+  // When true, retries the subgraph up to constraints.maxRetries times on exception
+  retry?: boolean
 
   // When true, branches[String(inputs.condition)] is executed; other inputs forwarded
   router?: boolean
