@@ -11,7 +11,7 @@ import { useStream } from './useStream'
 import { toReactFlow } from './layout'
 import type { SerializedGraph, Port } from './types'
 
-const SERVER   = 'http://localhost:3000'
+const SERVER    = 'http://localhost:3000'
 const nodeTypes = { fractal: FractalNode }
 
 const STATE_COLOR = {
@@ -29,13 +29,17 @@ const MINIMAP_NODE_COLOR = {
 }
 
 export default function App() {
-  const [catalog, setCatalog]     = useState<{ name: string; graph: SerializedGraph }[]>([])
-  const [selected, setSelected]   = useState('')
-  const [graph, setGraph]         = useState<SerializedGraph | null>(null)
+  const [catalog, setCatalog]       = useState<{ name: string; graph: SerializedGraph }[]>([])
+  const [selected, setSelected]     = useState('')
+  const [graph, setGraph]           = useState<SerializedGraph | null>(null)
   const [inputPorts, setInputPorts] = useState<Port[]>([])
   const [inputValues, setInputValues] = useState<Record<string, string>>({})
-  const [rfNodes, setRfNodes]     = useState<Node[]>([])
-  const [rfEdges, setRfEdges]     = useState<Edge[]>([])
+  const [rfNodes, setRfNodes]       = useState<Node[]>([])
+  const [rfEdges, setRfEdges]       = useState<Edge[]>([])
+
+  const [plantTask, setPlantTask]   = useState('')
+  const [planting, setPlanting]     = useState(false)
+  const [plantError, setPlantError] = useState<string | null>(null)
 
   const { runState, statuses, outputs, errorMsg, run, reset } = useStream()
 
@@ -71,6 +75,7 @@ export default function App() {
     const ports = found.graph.nodes.find(n => n.id === '$input')?.outputs ?? []
     setInputPorts(ports)
     setInputValues({})
+    setPlantError(null)
     reset()
   }, [catalog, reset])
 
@@ -81,6 +86,35 @@ export default function App() {
   const handleRun = useCallback(() => {
     if (graph) run(graph, inputValues)
   }, [graph, inputValues, run])
+
+  const handlePlant = useCallback(async () => {
+    const task = plantTask.trim()
+    if (!task) return
+    setPlanting(true)
+    setPlantError(null)
+    reset()
+    try {
+      const res = await fetch(`${SERVER}/plant`, {
+        method:  'POST',
+        headers: { 'content-type': 'application/json' },
+        body:    JSON.stringify({ task }),
+      })
+      const data = await res.json() as { graph?: SerializedGraph; error?: string }
+      if (!res.ok || !data.graph) {
+        setPlantError(data.error ?? `HTTP ${res.status}`)
+        return
+      }
+      setSelected('')
+      setGraph(data.graph)
+      const ports = data.graph.nodes.find(n => n.id === '$input')?.outputs ?? []
+      setInputPorts(ports)
+      setInputValues({})
+    } catch (err: any) {
+      setPlantError(err.message ?? 'Plant failed')
+    } finally {
+      setPlanting(false)
+    }
+  }, [plantTask, reset])
 
   const dotColor = STATE_COLOR[runState]
 
@@ -96,11 +130,13 @@ export default function App() {
         borderBottom: '1px solid #222',
         background:   '#111',
         flexShrink:    0,
+        flexWrap:     'wrap',
       }}>
         <span style={{ color: '#e8e8e8', fontWeight: 700, fontFamily: 'monospace', fontSize: 14, letterSpacing: '-0.02em' }}>
-          fractal editor
+          fractal
         </span>
 
+        {/* catalog dropdown */}
         <select
           value={selected}
           onChange={e => handleSelect(e.target.value)}
@@ -115,14 +151,55 @@ export default function App() {
             fontFamily:   'monospace',
           }}
         >
+          {selected === '' && <option value="">— planted —</option>}
           {catalog.map(g => (
             <option key={g.name} value={g.name}>{g.name}</option>
           ))}
         </select>
 
+        {/* plant input */}
+        <input
+          type="text"
+          placeholder="describe a graph…"
+          value={plantTask}
+          onChange={e => setPlantTask(e.target.value)}
+          onKeyDown={e => { if (e.key === 'Enter' && !planting) handlePlant() }}
+          disabled={planting}
+          style={{
+            background:   '#1a1a2e',
+            color:        '#e8e8e8',
+            border:       `1px solid ${plantError ? '#ef4444' : '#444'}`,
+            borderRadius:  6,
+            padding:       '4px 10px',
+            fontSize:      13,
+            fontFamily:   'monospace',
+            width:         260,
+            outline:      'none',
+          }}
+        />
+
+        <button
+          onClick={handlePlant}
+          disabled={planting || !plantTask.trim()}
+          style={{
+            background:   planting ? '#1a1a2e' : '#1a1030',
+            color:        planting ? '#555' : '#a78bfa',
+            border:       '1px solid #7c3aed55',
+            borderRadius:  6,
+            padding:       '4px 14px',
+            fontSize:      13,
+            cursor:        planting || !plantTask.trim() ? 'not-allowed' : 'pointer',
+            fontFamily:   'monospace',
+            fontWeight:    600,
+          }}
+        >
+          {planting ? '⟳ planting…' : '✦ plant'}
+        </button>
+
+        {/* run/stop button */}
         <button
           onClick={runState === 'running' ? reset : handleRun}
-          disabled={!graph}
+          disabled={!graph || planting}
           style={{
             background:   runState === 'running' ? '#2b0d0d' : '#0d2b1a',
             color:        runState === 'running' ? '#ef4444' : '#22c55e',
@@ -130,7 +207,7 @@ export default function App() {
             borderRadius:  6,
             padding:       '4px 16px',
             fontSize:      13,
-            cursor:        graph ? 'pointer' : 'not-allowed',
+            cursor:        graph && !planting ? 'pointer' : 'not-allowed',
             fontFamily:   'monospace',
             fontWeight:    600,
           }}
@@ -152,9 +229,9 @@ export default function App() {
             boxShadow: runState === 'running' ? `0 0 6px ${dotColor}` : 'none',
           }} />
           {runState}
-          {errorMsg && (
+          {(errorMsg || plantError) && (
             <span style={{ color: '#ef4444', marginLeft: 8, maxWidth: 300, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-              {errorMsg}
+              {errorMsg ?? plantError}
             </span>
           )}
         </div>
@@ -195,7 +272,26 @@ export default function App() {
           />
         </ReactFlow>
 
-        {catalog.length === 0 && (
+        {planting && (
+          <div style={{
+            position:   'absolute',
+            inset:       0,
+            display:    'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            background: '#0f0f0fcc',
+            color:      '#a78bfa',
+            fontFamily: 'monospace',
+            fontSize:    14,
+            gap:         10,
+            pointerEvents: 'none',
+          }}>
+            <span style={{ animation: 'spin 1s linear infinite' }}>⟳</span>
+            planting graph…
+          </div>
+        )}
+
+        {!planting && catalog.length === 0 && !graph && (
           <div style={{
             position:   'absolute',
             inset:       0,

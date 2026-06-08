@@ -286,18 +286,147 @@ Requires the execution server running on port 3000 (`npm run server` from root).
 
 **Features:**
 - Graph dropdown loaded from `GET /graphs` (6 built-in graphs)
+- **✦ plant** text input — type a task, press Enter → `POST /plant` → graph renders in canvas
 - Auto-layout: topological depth → left-to-right columns, nodes centered vertically per column
-- Custom `FractalNode` component: input handles (left), output handles (right), port type color coding, `loop`/`route`/`agent`/`graph` badges
-- `▶ run` button → `POST /run/stream` SSE → nodes animate in real time
+- Custom `FractalNode` component: input handles (left), output handles (right), port type color coding, badges: `while` / `forEach` / `retry` / `route` / `agent` / `graph`
+- `▶ run` button → `POST /execute/stream` SSE → nodes animate in real time
   - `start` event → node turns yellow
   - `complete` event → node turns green
   - `error` event → node turns red
 - Output panel at bottom shows graph outputs after run completes
 - MiniMap, zoom controls, dark theme throughout
+- All graphs (catalog + planted) run through the unified execute-engine
 
 **Server addition:** `GET /graphs` endpoint returns all 6 built-in graph JSONs for the editor dropdown.
 
 ---
 
+## Plant / Execute pipeline (`run_plant.ts` + `run_execute.ts`)
+
+A separate LLM-driven pipeline that designs and runs graphs from natural language — no manual graph authoring required.
+
+```
+npx tsx run_plant.ts "describe the graph" --out graph.json
+npx tsx run_execute.ts --graph graph.json --inputs-file inputs.json --out trace.json
+```
+
+### run_plant.ts — Graph Compiler
+
+- GPT-4o designs a `SerializedGraph` from a natural-language task description
+- Self-correcting loop: up to 5 passes, feeds `validateGraph` errors back to the LLM
+- MCP tools loaded from `mcp.json` at startup, merged with builtins into the system prompt
+- `--out` saves graph JSON for the executor
+
+### run_execute.ts — Executor
+
+- `--inputs-file` instead of `--inputs` (PowerShell 5.1 mangles JSON in CLI args)
+- MCP connection pool: connects once, keeps alive, closes at end (60s per-call timeout)
+- Topological execution via `core/topo.ts`
+- Wire state: `Map<"nodeId:portId", value>` propagated along edges
+- Error isolation: failed nodes skip dependents with ⚠ warning
+- Full trace: nodeId, inputs, outputs, durationMs, error per node → written to JSON
+- Recursive via `executeSubgraph(graph, inputs, pool, trace, depth)` — supports nested subgraphs
+
+**Auto-boxing** for MCP `params: object` ports:
+1. Already object → pass directly
+2. Valid JSON string → JSON.parse
+3. Newline-separated file paths → `{ paths: [...] }`
+4. Anything else → `{ value: x }`
+
+### lib/mcp-pool.ts
+
+`callTool(serverId, toolName, args)` with 60s timeout. One pool instance per executor run.
+
+### lib/mcp-catalog.ts
+
+Loads MCP tools dynamically from `mcp.json`. Lossy entries: `params: object` in, `result: any` out. Node IDs: `servername__toolname`.
+
+### mcp.json
+
+`@modelcontextprotocol/server-filesystem` → `C:/Users/Kadie/Documents`. 14 tools.
+- Documents root search times out (too large). Use specific subdirectory.
+- `C:/Users/Kadie/Documents/GitHub/fractal-node-core` works (~20s for search_files).
+
+### Builtin catalog nodes
+
+`http_fetch`, `research_answer`, `draft_writer`, `quality_judge`, `memory_read`, `memory_write`, `passthrough`
+
+**split_lines** — splits newline text into `{paths:[...]}` object; connects directly to MCP `params` port.
+
+### Loop nodes (run_execute.ts) — ALL CONFIRMED WORKING ✓
+
+**ForEach** (`forEach: true` + `subgraph`):
+- Input: `items: object` (array, `{paths:[...]}`, or `{items:[...]}`)
+- Subgraph `$input` must expose `item: any`; parent context inputs forwarded automatically
+- Output: `results: object` (array of per-item result objects)
+- **Confirmed** — Plant designed valid graph first pass; 3 items through `draft_writer`, results collected
+
+**While** (`loop: true` + `subgraph`):
+- Runs until `$output.continue === false`
+- Non-`continue` outputs feed back as next iteration's `$input`
+- `constraints.maxIterations` caps the loop (default 10)
+- **Confirmed** — lipogram test forced 2 iterations; feedback + draft carried forward correctly; exited on judge approval
+- Port naming rule: subgraph `$output` must use the same port names as subgraph `$input` for values that feed back (e.g. output `draft` not `response` if the next iteration reads `draft`)
+- `continue` must NOT appear in the outer node's outputs — `runWhile` strips it before returning
+
+**Retry** (`retry: true` + `subgraph`):
+- Retries subgraph on exception up to `constraints.maxRetries` times (default 3)
+- Throws if all attempts fail
+- **Confirmed** — `flaky_op` failed twice, succeeded on attempt 3; exhaustion path throws correctly
+- Key fix: `executeSubgraph` takes `throwOnError = false`; Retry passes `true` so node errors propagate instead of being swallowed by error isolation
+
+### flaky_op builtin (test only)
+
+Module-level call counter; throws `Error("flaky failure #N of M")` for first `failTimes` calls, then returns `{ result: "succeeded on attempt N" }`. Used to exercise Retry without external dependencies.
+
+### Confirmed Working Graphs
+
+**Search → Read → Summarize (MCP):**
+```
+$input(searchParams, summaryPrompt)
+  → filesystem__search_files
+  → filesystem__read_multiple_files   (auto-boxed: string paths → {paths:[...]})
+  → draft_writer
+  → $output(summary)
+```
+
+**ForEach (builtins only):**
+```
+$input(items: ["quantum computing", "machine learning", "blockchain"])
+  → process_each (forEach)
+      subgraph: $input(item) → draft_writer → $output(result)
+  → $output(results: [...3 responses...])
+```
+
+### Shared execution library (`lib/execute-engine.ts`)
+
+Extracted from `run_execute.ts` into a shared module used by both the CLI and the server.
+
+- Export: `executeSubgraph(graph, inputs, pool, onEvent?, depth?, throwOnError?)`
+- Export: `NodeEvent` type (`start` | `complete` | `error`, with nodeId + durationMs + depth)
+- `onEvent` callback drives SSE streaming in `POST /execute/stream`
+- `throwOnError = true` used internally by `runRetry` so node exceptions propagate
+
+`run_execute.ts` and `run_plant.ts` are now thin CLI wrappers around `lib/execute-engine.ts` and `lib/plant.ts`.
+
+### Shared plant library (`lib/plant.ts`)
+
+Extracted compiler logic. Export: `plantGraph(task, maxPasses?) → Promise<SerializedGraph>`.
+Used by `run_plant.ts` (CLI) and `POST /plant` (server).
+
+### Server endpoints (added)
+
+| Route | Method | What it does |
+|---|---|---|
+| `/plant` | POST | `{ task }` → runs GPT-4o compiler, returns `{ graph }` |
+| `/execute/stream` | POST | `{ graph, inputs? }` → SSE stream via execute-engine + McpPool (per-request pool) |
+
+### gitignored runtime files
+
+`.env.local`, `inputs.json`, `graph.json`, `trace.json`, `memory-store.json`
+
+---
+
 ## Known issues
-- none
+- MCP pool reconnects per `/execute/stream` request — adds ~1-2s overhead per run
+- `flaky_op` counter is module-level; resets only on server restart

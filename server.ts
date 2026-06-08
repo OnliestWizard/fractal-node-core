@@ -8,6 +8,9 @@ import { emitGraphJS } from './emitters/web/emitGraphJS'
 import { emitGraphKotlin } from './emitters/android/emitKotlin'
 import { emitGraphSwift } from './emitters/swift/emitSwift'
 import type { SerializedGraph } from './core/serializer'
+import { plantGraph } from './lib/plant'
+import { executeSubgraph } from './lib/execute-engine'
+import { McpPool } from './lib/mcp-pool'
 
 // ── Built-in capability registry ─────────────────────────────────────────────
 
@@ -198,6 +201,56 @@ export function createApp() {
     } catch (err: any) {
       send('error', { error: err.message ?? 'Execution failed' })
     } finally {
+      res.end()
+    }
+  })
+
+  // POST /plant
+  // Body: { task: string }
+  // Returns: { graph: SerializedGraph }
+  app.post('/plant', async (req, res) => {
+    const { task } = req.body as { task?: string }
+    if (!task) return res.status(400).json({ error: 'Missing task' })
+
+    try {
+      const graph = await plantGraph(task)
+      res.json({ graph })
+    } catch (err: any) {
+      res.status(500).json({ error: err.message ?? 'Plant failed' })
+    }
+  })
+
+  // POST /execute/stream
+  // Body: { graph: SerializedGraph, inputs?: Record<string, any> }
+  // Returns: SSE stream compatible with /run/stream — same event format
+  app.post('/execute/stream', async (req, res) => {
+    const { graph, inputs } = req.body as { graph: SerializedGraph; inputs?: Record<string, any> }
+    if (!graph) return res.status(400).json({ error: 'Missing graph' })
+
+    const validationErrors = validateGraph(graph)
+    if (validationErrors.length) {
+      return res.status(422).json({ error: 'Invalid graph', errors: validationErrors })
+    }
+
+    res.setHeader('Content-Type', 'text/event-stream')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.setHeader('Connection', 'keep-alive')
+    res.flushHeaders()
+
+    const send = (event: string, data: unknown) => {
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+    }
+
+    const pool = new McpPool()
+
+    try {
+      await pool.connect()
+      const outputs = await executeSubgraph(graph, inputs ?? {}, pool, event => send('node', event))
+      send('done', { outputs })
+    } catch (err: any) {
+      send('error', { error: err.message ?? 'Execution failed' })
+    } finally {
+      await pool.close()
       res.end()
     }
   })

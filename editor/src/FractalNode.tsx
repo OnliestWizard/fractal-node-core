@@ -62,10 +62,12 @@ export default memo(function FractalNode({ data }: Props) {
         <span style={{ color: '#e8e8e8', fontWeight: 700, fontSize: 13, flex: 1 }}>
           {node.id}
         </span>
-        {node.loop   && <Badge label="loop"   color="#7c3aed" />}
-        {node.router && <Badge label="route"  color="#0891b2" />}
-        {node.agent  && <Badge label="agent"  color="#dc2626" />}
-        {node.subgraph && !node.loop && <Badge label="graph" color="#059669" />}
+        {node.loop    && <Badge label="while"   color="#7c3aed" />}
+        {node.forEach && <Badge label="forEach" color="#0d9488" />}
+        {node.retry   && <Badge label="retry"   color="#d97706" />}
+        {node.router  && <Badge label="route"   color="#0891b2" />}
+        {node.agent   && <Badge label="agent"   color="#dc2626" />}
+        {node.subgraph && !node.loop && !node.forEach && !node.retry && <Badge label="graph" color="#059669" />}
       </div>
 
       {/* ── ports ── */}

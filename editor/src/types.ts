@@ -11,6 +11,8 @@ export interface SerializedNode {
   outputs: Port[]
   sideEffects?: string[]
   loop?: boolean
+  forEach?: boolean
+  retry?: boolean
   router?: boolean
   agent?: boolean
   subgraph?: SerializedGraph

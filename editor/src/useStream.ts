@@ -23,7 +23,7 @@ export function useStream() {
     setRunState('running')
 
     try {
-      const res = await fetch(`${SERVER}/run/stream`, {
+      const res = await fetch(`${SERVER}/execute/stream`, {
         method:  'POST',
         headers: { 'content-type': 'application/json' },
         body:    JSON.stringify({ graph, inputs }),
