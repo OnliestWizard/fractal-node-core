@@ -1,12 +1,16 @@
+import { config } from 'dotenv'
+config({ path: '.env.local' })
 import OpenAI from 'openai'
+import { writeFileSync } from 'fs'
 import { validateGraph } from './core/validator'
 import type { ValidationError } from './core/validator'
 import type { SerializedGraph } from './core/serializer'
+import { loadMcpCatalog } from './lib/mcp-catalog'
 
 let _client: OpenAI | undefined
 const client = () => (_client ??= new OpenAI())
 
-const CATALOG = [
+const BUILTIN_CATALOG = [
   {
     id: 'http_fetch',
     description: 'Fetch a URL over HTTP',
@@ -82,9 +86,7 @@ Hard rules:
 4. No cycles.
 
 Available leaf nodes — use these ids exactly, and copy their port shapes faithfully:
-${CATALOG.map(n =>
-  `\n  id: "${n.id}"\n  description: ${n.description}\n  inputs:  ${JSON.stringify(n.inputs)}\n  outputs: ${JSON.stringify(n.outputs)}`
-).join('\n')}
+CATALOG_PLACEHOLDER
 
 Return ONLY valid JSON — no markdown fences, no explanation. The root object must be the SerializedGraph.`
 
@@ -115,15 +117,30 @@ async function callLLM(messages: OpenAI.Chat.ChatCompletionMessageParam[]): Prom
 }
 
 async function main() {
-  const task = process.argv.slice(2).join(' ')
+  const rawArgs = process.argv.slice(2)
+  const outIdx = rawArgs.indexOf('--out')
+  let outFile: string | null = null
+  if (outIdx !== -1) { outFile = rawArgs[outIdx + 1]; rawArgs.splice(outIdx, 2) }
+  const task = rawArgs.join(' ')
+
   if (!task) {
-    console.error('Usage: npx tsx run_plant.ts "describe the agent graph you want"')
+    console.error('Usage: npx tsx run_plant.ts "describe the agent graph you want" [--out graph.json]')
     process.exit(1)
   }
 
+  const mcpNodes = await loadMcpCatalog()
+  const catalog = [...BUILTIN_CATALOG, ...mcpNodes]
+  if (mcpNodes.length > 0)
+    console.log(`[mcp] loaded ${mcpNodes.length} tool(s): ${mcpNodes.map(n => n.id).join(', ')}`)
+
+  const catalogText = catalog.map(n =>
+    `\n  id: "${n.id}"\n  description: ${n.description}\n  inputs:  ${JSON.stringify(n.inputs)}\n  outputs: ${JSON.stringify(n.outputs)}`
+  ).join('\n')
+  const system = SYSTEM.replace('CATALOG_PLACEHOLDER', catalogText)
+
   const maxPasses = 5
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
-    { role: 'system', content: SYSTEM },
+    { role: 'system', content: system },
     { role: 'user',   content: `Design a graph for this task:\n\n${task}` },
   ]
 
@@ -171,10 +188,15 @@ async function main() {
   console.log(JSON.stringify(graph, null, 2))
   console.log('\n── node summary ' + '─'.repeat(50))
   graph.nodes.forEach(n => {
-    const ins  = n.inputs.map(p  => p.id + (p.optional ? '?' : '')).join(', ')
-    const outs = n.outputs.map(p => p.id).join(', ')
+    const ins  = (n.inputs  ?? []).map(p => p.id + (p.optional ? '?' : '')).join(', ')
+    const outs = (n.outputs ?? []).map(p => p.id).join(', ')
     console.log(`  ${n.id.padEnd(20)} in:[${ins}]  out:[${outs}]`)
   })
+
+  if (outFile) {
+    writeFileSync(outFile, JSON.stringify(graph, null, 2))
+    console.log(`\n── saved to ${outFile}`)
+  }
 }
 
 main().catch(err => { console.error(err); process.exit(1) })

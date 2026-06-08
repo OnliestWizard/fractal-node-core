@@ -1,2 +1,7 @@
 node_modules/
 dist/
+.env.local
+inputs.json
+graph.json
+trace.json
+memory-store.json
