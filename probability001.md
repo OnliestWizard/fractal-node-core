@@ -84,3 +84,28 @@ Not a feature list. It's the one that already runs today:
 > exactly what it did."
 
 No product I'm aware of can show that whole loop today.
+
+---
+
+## What it means you should do
+
+Three concrete implications:
+
+1. **Script it.** Right now the loop exists as scattered terminal history. Make
+   it one repeatable artifact — a `demo.ts` or, more on-brand, *a graph in the
+   library that runs the whole loop* (the system demoing itself is the most
+   honest possible flex). Five minutes, one command, ends with the replay
+   scrolling by.
+2. **Treat the loop as the product's regression test.** If a future change
+   breaks any beat, the product story broke — that's more important than any
+   unit test. Worth encoding as an end-to-end test someday.
+3. **Raise the stakes to raise the proof.** The honest caveat: today the loop
+   runs on haiku graphs and `deepClone`. The demo's persuasive power scales
+   with how scary the task is — the version where it designs a graph that
+   touches GitHub, gets one wrong, *and you roll back and replay the damage*
+   is the one that makes someone reach for a checkbook. Same loop, real
+   stakes.
+
+The one-line summary of what it all means: you're not demoing features, you're
+demoing that **autonomy can come with receipts** — and right now you may be
+the only one who can.
