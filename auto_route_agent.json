@@ -1,0 +1,230 @@
+{
+  "nodes": [
+    {
+      "id": "$input",
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "query",
+          "type": "string"
+        },
+        {
+          "id": "mode",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "decide",
+      "router": true,
+      "inputs": [
+        {
+          "id": "condition",
+          "type": "string"
+        },
+        {
+          "id": "query",
+          "type": "string"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "result",
+          "type": "string"
+        }
+      ],
+      "branches": {
+        "research": {
+          "nodes": [
+            {
+              "id": "$input",
+              "inputs": [],
+              "outputs": [
+                {
+                  "id": "condition",
+                  "type": "string"
+                },
+                {
+                  "id": "query",
+                  "type": "string"
+                }
+              ]
+            },
+            {
+              "id": "research_agent",
+              "agent": true,
+              "model": "gpt-4o-mini",
+              "constraints": {
+                "maxTurns": 5
+              },
+              "inputs": [
+                {
+                  "id": "task",
+                  "type": "string"
+                }
+              ],
+              "outputs": [
+                {
+                  "id": "result",
+                  "type": "string"
+                },
+                {
+                  "id": "steps",
+                  "type": "object"
+                }
+              ]
+            },
+            {
+              "id": "$output",
+              "inputs": [
+                {
+                  "id": "result",
+                  "type": "string"
+                }
+              ],
+              "outputs": []
+            }
+          ],
+          "edges": [
+            {
+              "from": {
+                "nodeId": "$input",
+                "portId": "query"
+              },
+              "to": {
+                "nodeId": "research_agent",
+                "portId": "task"
+              }
+            },
+            {
+              "from": {
+                "nodeId": "research_agent",
+                "portId": "result"
+              },
+              "to": {
+                "nodeId": "$output",
+                "portId": "result"
+              }
+            }
+          ]
+        },
+        "creative": {
+          "nodes": [
+            {
+              "id": "$input",
+              "inputs": [],
+              "outputs": [
+                {
+                  "id": "condition",
+                  "type": "string"
+                },
+                {
+                  "id": "query",
+                  "type": "string"
+                }
+              ]
+            },
+            {
+              "id": "creative_agent",
+              "agent": true,
+              "model": "gpt-4o-mini",
+              "constraints": {
+                "maxTurns": 5
+              },
+              "inputs": [
+                {
+                  "id": "task",
+                  "type": "string"
+                }
+              ],
+              "outputs": [
+                {
+                  "id": "result",
+                  "type": "string"
+                },
+                {
+                  "id": "steps",
+                  "type": "object"
+                }
+              ]
+            },
+            {
+              "id": "$output",
+              "inputs": [
+                {
+                  "id": "result",
+                  "type": "string"
+                }
+              ],
+              "outputs": []
+            }
+          ],
+          "edges": [
+            {
+              "from": {
+                "nodeId": "$input",
+                "portId": "query"
+              },
+              "to": {
+                "nodeId": "creative_agent",
+                "portId": "task"
+              }
+            },
+            {
+              "from": {
+                "nodeId": "creative_agent",
+                "portId": "result"
+              },
+              "to": {
+                "nodeId": "$output",
+                "portId": "result"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "$output",
+      "inputs": [
+        {
+          "id": "result",
+          "type": "string"
+        }
+      ],
+      "outputs": []
+    }
+  ],
+  "edges": [
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "mode"
+      },
+      "to": {
+        "nodeId": "decide",
+        "portId": "condition"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "query"
+      },
+      "to": {
+        "nodeId": "decide",
+        "portId": "query"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "decide",
+        "portId": "result"
+      },
+      "to": {
+        "nodeId": "$output",
+        "portId": "result"
+      }
+    }
+  ]
+}

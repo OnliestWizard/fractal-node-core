@@ -304,6 +304,163 @@ async function runRetry(
   throw new Error(`Retry exhausted after ${maxRetries + 1} attempts: ${lastError}`)
 }
 
+async function runRoute(
+  node: SerializedNode,
+  inputs: Record<string, unknown>,
+  pool: McpPool,
+  onEvent: ((e: NodeEvent) => void) | undefined,
+  depth: number,
+  parentEvents?: NodeEvent[],
+): Promise<Record<string, unknown>> {
+  const condition = String(inputs.condition ?? '')
+  const branch = node.branches![condition] ?? node.branches!['default']
+  if (!branch) throw new Error(`No branch for condition "${condition}" and no default`)
+  return executeSubgraph(branch, inputs, pool, onEvent, depth + 1, false, parentEvents)
+}
+
+// Tools exposed to the agent — mirrors the builtin catalog
+const AGENT_TOOLS: OpenAI.Chat.ChatCompletionTool[] = [
+  {
+    type: 'function',
+    function: {
+      name: 'draft_writer',
+      description: 'Write or improve a draft given a prompt and optional prior draft/feedback',
+      parameters: {
+        type: 'object',
+        properties: {
+          prompt:   { type: 'string' },
+          system:   { type: 'string' },
+          draft:    { type: 'string' },
+          feedback: { type: 'string' },
+        },
+        required: ['prompt'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'research_answer',
+      description: 'Answer a question from provided content',
+      parameters: {
+        type: 'object',
+        properties: {
+          content:  { type: 'string' },
+          question: { type: 'string' },
+        },
+        required: ['content', 'question'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'http_fetch',
+      description: 'Fetch a URL over HTTP',
+      parameters: {
+        type: 'object',
+        properties: {
+          url:    { type: 'string' },
+          method: { type: 'string' },
+        },
+        required: ['url'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'run_js',
+      description: 'Execute JavaScript code against test cases. Returns pass/fail results.',
+      parameters: {
+        type: 'object',
+        properties: {
+          code:  { type: 'string' },
+          tests: { type: 'array', items: { type: 'object' } },
+        },
+        required: ['code', 'tests'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'memory_read',
+      description: 'Read a value from persistent memory by key',
+      parameters: {
+        type: 'object',
+        properties: { key: { type: 'string' } },
+        required: ['key'],
+      },
+    },
+  },
+  {
+    type: 'function',
+    function: {
+      name: 'memory_write',
+      description: 'Write a key/value pair to persistent memory',
+      parameters: {
+        type: 'object',
+        properties: { key: { type: 'string' }, value: {} },
+        required: ['key', 'value'],
+      },
+    },
+  },
+]
+
+async function runAgent(
+  node: SerializedNode,
+  inputs: Record<string, unknown>,
+  pool: McpPool,
+  indent: string,
+): Promise<Record<string, unknown>> {
+  const maxTurns = node.constraints?.maxTurns ?? 10
+  const model = node.model ?? 'gpt-4o-mini'
+  const task = String(inputs.task ?? '')
+  const context = inputs.context ? `\n\nContext:\n${String(inputs.context)}` : ''
+
+  const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
+    {
+      role: 'system',
+      content: 'You are an autonomous agent. Use the provided tools to complete the task. When you have finished, respond with just your final answer text and no more tool calls.',
+    },
+    { role: 'user', content: task + context },
+  ]
+
+  const steps: Array<{ tool: string; args: unknown; result: unknown }> = []
+
+  for (let turn = 0; turn < maxTurns; turn++) {
+    const response = await oai().chat.completions.create({ model, messages, tools: AGENT_TOOLS })
+    const msg = response.choices[0].message
+    messages.push(msg)
+
+    if (!msg.tool_calls?.length) {
+      const result = msg.content ?? ''
+      console.log(`${indent}  ✓ agent done in ${turn + 1} turn(s)`)
+      return { result, steps }
+    }
+
+    for (const call of msg.tool_calls) {
+      if (call.type !== 'function') continue
+      const toolName = call.function.name
+      const toolArgs = JSON.parse(call.function.arguments) as Record<string, unknown>
+      console.log(`${indent}    → ${toolName}(${Object.keys(toolArgs).join(', ')})`)
+
+      let toolResult: Record<string, unknown>
+      try {
+        toolResult = await runBuiltin(toolName, toolArgs)
+      } catch (e) {
+        toolResult = { error: String(e) }
+      }
+
+      steps.push({ tool: toolName, args: toolArgs, result: toolResult })
+      messages.push({ role: 'tool', tool_call_id: call.id, content: JSON.stringify(toolResult) })
+    }
+  }
+
+  return { result: 'Agent reached max turns without finishing', steps }
+}
+
 // ── Graph execution ───────────────────────────────────────────────────────────
 
 export async function executeSubgraph(
@@ -383,6 +540,14 @@ export async function executeSubgraph(
         console.log(`${indent}  ↻ ${nodeId} (retry)`)
         outputs = await runRetry(node, inputs, pool, onEvent, depth, localEvents)
         console.log(`${indent}  ✓ ${nodeId}`)
+      } else if (node.router && node.branches) {
+        const cond = String(inputs.condition ?? '')
+        console.log(`${indent}  ⑂ ${nodeId} (route → "${cond}")`)
+        outputs = await runRoute(node, inputs, pool, onEvent, depth, localEvents)
+        console.log(`${indent}  ✓ ${nodeId}`)
+      } else if (node.agent) {
+        console.log(`${indent}  ◈ ${nodeId} (agent, model=${node.model ?? 'gpt-4o-mini'})`)
+        outputs = await runAgent(node, inputs, pool, indent)
       } else if (nodeId === 'plant') {
         console.log(`${indent}  ✦ ${nodeId} — designing graph for: "${inputs.task}"`)
         outputs = { graph: await plantGraph(String(inputs.task)) }

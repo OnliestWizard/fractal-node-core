@@ -1,0 +1,61 @@
+{
+  "nodes": [
+    {
+      "id": "$input",
+      "inputs": [],
+      "outputs": [
+        { "id": "condition", "type": "string" },
+        { "id": "text",      "type": "string" }
+      ]
+    },
+    {
+      "id": "router",
+      "router": true,
+      "inputs": [
+        { "id": "condition", "type": "string" },
+        { "id": "text",      "type": "string" }
+      ],
+      "outputs": [
+        { "id": "result", "type": "string" }
+      ],
+      "branches": {
+        "haiku": {
+          "nodes": [
+            { "id": "$input",  "inputs": [], "outputs": [{ "id": "condition", "type": "string" }, { "id": "text", "type": "string" }] },
+            { "id": "draft_writer", "inputs": [{ "id": "prompt", "type": "string" }, { "id": "system", "type": "string", "optional": true }], "outputs": [{ "id": "response", "type": "string" }] },
+            { "id": "haiku_sys", "inputs": [], "outputs": [{ "id": "value", "type": "string" }], "constraints": { "literal": "Write only a haiku, nothing else." } },
+            { "id": "$output", "inputs": [{ "id": "result", "type": "string" }], "outputs": [] }
+          ],
+          "edges": [
+            { "from": { "nodeId": "$input",      "portId": "text"     }, "to": { "nodeId": "draft_writer", "portId": "prompt"  } },
+            { "from": { "nodeId": "haiku_sys",   "portId": "value"    }, "to": { "nodeId": "draft_writer", "portId": "system"  } },
+            { "from": { "nodeId": "draft_writer", "portId": "response"}, "to": { "nodeId": "$output",      "portId": "result"  } }
+          ]
+        },
+        "default": {
+          "nodes": [
+            { "id": "$input",  "inputs": [], "outputs": [{ "id": "condition", "type": "string" }, { "id": "text", "type": "string" }] },
+            { "id": "draft_writer", "inputs": [{ "id": "prompt", "type": "string" }], "outputs": [{ "id": "response", "type": "string" }] },
+            { "id": "$output", "inputs": [{ "id": "result", "type": "string" }], "outputs": [] }
+          ],
+          "edges": [
+            { "from": { "nodeId": "$input",       "portId": "text"     }, "to": { "nodeId": "draft_writer", "portId": "prompt"  } },
+            { "from": { "nodeId": "draft_writer",  "portId": "response" }, "to": { "nodeId": "$output",     "portId": "result"  } }
+          ]
+        }
+      }
+    },
+    {
+      "id": "$output",
+      "inputs": [
+        { "id": "result", "type": "string" }
+      ],
+      "outputs": []
+    }
+  ],
+  "edges": [
+    { "from": { "nodeId": "$input", "portId": "condition" }, "to": { "nodeId": "router",  "portId": "condition" } },
+    { "from": { "nodeId": "$input", "portId": "text"      }, "to": { "nodeId": "router",  "portId": "text"      } },
+    { "from": { "nodeId": "router", "portId": "result"    }, "to": { "nodeId": "$output", "portId": "result"    } }
+  ]
+}

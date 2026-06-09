@@ -1,0 +1,38 @@
+{
+  "nodes": [
+    {
+      "id": "$input",
+      "inputs": [],
+      "outputs": [
+        { "id": "task", "type": "string" }
+      ]
+    },
+    {
+      "id": "researcher",
+      "agent": true,
+      "model": "gpt-4o-mini",
+      "constraints": { "maxTurns": 5 },
+      "inputs": [
+        { "id": "task",    "type": "string" },
+        { "id": "context", "type": "string", "optional": true }
+      ],
+      "outputs": [
+        { "id": "result", "type": "string" },
+        { "id": "steps",  "type": "object" }
+      ]
+    },
+    {
+      "id": "$output",
+      "inputs": [
+        { "id": "result", "type": "string" },
+        { "id": "steps",  "type": "object" }
+      ],
+      "outputs": []
+    }
+  ],
+  "edges": [
+    { "from": { "nodeId": "$input",     "portId": "task"   }, "to": { "nodeId": "researcher", "portId": "task"   } },
+    { "from": { "nodeId": "researcher", "portId": "result" }, "to": { "nodeId": "$output",    "portId": "result" } },
+    { "from": { "nodeId": "researcher", "portId": "steps"  }, "to": { "nodeId": "$output",    "portId": "steps"  } }
+  ]
+}

@@ -124,6 +124,9 @@ const BUILTIN_CATALOG = [
   },
 ]
 
+// Route and agent are not in BUILTIN_CATALOG — they are declared inline in the graph JSON.
+// Plant needs their shapes documented in the system prompt instead.
+
 const SYSTEM_TEMPLATE = `You are a graph compiler. Design execution graphs for AI agent workflows.
 
 A graph is a JSON object:
@@ -227,6 +230,45 @@ While node — runs the subgraph until $output.continue is false:
 Retry node — retries the subgraph on exception:
   Add "retry": true and "constraints": {"maxRetries": N} to the node.
   The subgraph is re-run up to maxRetries+1 times total; throws if all attempts fail.
+
+Router node — runs one of several branch subgraphs based on a condition value:
+  Add "router": true to the node. The node MUST have a required input port named "condition" (type "string").
+  "branches" is a JSON object mapping string condition values to subgraph objects (same SerializedGraph shape).
+  Include a "default" key as a fallback for unmatched conditions.
+  All non-condition inputs are forwarded to the selected branch's $input.
+  The router node's outputs must match the outputs of each branch's $output.
+  Example shape:
+  { "id": "decide", "router": true,
+    "inputs":  [{"id":"condition","type":"string"}, {"id":"text","type":"string"}],
+    "outputs": [{"id":"result","type":"string"}],
+    "branches": {
+      "short": {
+        "nodes": [
+          {"id":"$input","inputs":[],"outputs":[{"id":"condition","type":"string"},{"id":"text","type":"string"}]},
+          {"id":"passthrough","inputs":[{"id":"value","type":"any"}],"outputs":[{"id":"value","type":"any"}]},
+          {"id":"$output","inputs":[{"id":"result","type":"any"}],"outputs":[]}
+        ],
+        "edges": [
+          {"from":{"nodeId":"$input","portId":"text"},"to":{"nodeId":"passthrough","portId":"value"}},
+          {"from":{"nodeId":"passthrough","portId":"value"},"to":{"nodeId":"$output","portId":"result"}}
+        ]
+      },
+      "default": { "nodes": [...], "edges": [...] }
+    }
+  }
+
+Agent node — an LLM that autonomously calls tools until it produces a final answer:
+  Add "agent": true and optionally "model": "gpt-4o-mini" (default) or "gpt-4o".
+  Optionally add "constraints": {"maxTurns": N} (default 10).
+  Required input port: "task" (type "string") — the natural-language instruction.
+  Optional input port: "context" (type "string") — additional background.
+  Output ports: "result" (type "string") — the agent's final answer; "steps" (type "object") — tool call log.
+  The agent has access to: draft_writer, research_answer, http_fetch, run_js, memory_read, memory_write.
+  Example shape:
+  { "id": "researcher", "agent": true, "model": "gpt-4o-mini", "constraints": {"maxTurns": 5},
+    "inputs":  [{"id":"task","type":"string"}, {"id":"context","type":"string","optional":true}],
+    "outputs": [{"id":"result","type":"string"}, {"id":"steps","type":"object"}]
+  }
 
 Literal value nodes — use whenever you need a hardcoded constant string, number, or boolean as a port input. Any node with a "constraints.literal" field outputs { value: <that literal> } at runtime. Give each a unique id:
   { "id": "name_const", "inputs": [], "outputs": [{"id":"value","type":"string"}], "constraints": {"literal": "code_improve"} }
