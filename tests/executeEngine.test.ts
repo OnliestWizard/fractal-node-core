@@ -46,7 +46,8 @@ const run = (
   pool = fakePool(),
   onEvent?: (e: NodeEvent) => void,
   throwOnError = false,
-) => executeSubgraph(graph, inputs, pool, onEvent, 0, throwOnError)
+  allowedTools?: string[],
+) => executeSubgraph(graph, inputs, pool, onEvent, 0, throwOnError, undefined, allowedTools)
 
 beforeEach(() => {
   vi.spyOn(console, 'log').mockImplementation(() => {})
@@ -632,6 +633,173 @@ describe('execute_graph', () => {
     }
     const out = await run(outer, { graph: inner, inputs: { value: 'nested' } })
     expect(out).toEqual({ outputs: { value: 'nested' } })
+  })
+})
+
+// ── Capability permissions ────────────────────────────────────────────────────
+
+describe('capability permissions', () => {
+  const passGraph: SerializedGraph = {
+    nodes: [
+      node('$input'),
+      node('passthrough', { inputs: [p('value')], outputs: [p('value')] }),
+      node('$output', { inputs: [p('value')] }),
+    ],
+    edges: [edge('$input.value', 'passthrough.value'), edge('passthrough.value', '$output.value')],
+  }
+
+  const echoGraph: SerializedGraph = {
+    nodes: [
+      node('$input'),
+      node('mock__echo', { inputs: [p('params')], outputs: [p('result')] }),
+      node('$output', { inputs: [p('result')] }),
+    ],
+    edges: [edge('$input.params', 'mock__echo.params'), edge('mock__echo.result', '$output.result')],
+  }
+  const echoPool = () => fakePool({ mock__echo: args => args })
+
+  it('allows builtins on the list and blocks the rest', async () => {
+    const ok = await run(passGraph, { value: 1 }, fakePool(), undefined, false, ['passthrough'])
+    expect(ok).toEqual({ value: 1 })
+
+    const events: NodeEvent[] = []
+    const blocked = await run(passGraph, { value: 1 }, fakePool(), e => events.push(e), false, ['split_lines'])
+    expect(blocked).toEqual({})
+    expect(events.some(e => e.type === 'error' && e.error.includes('blocked by allowedTools'))).toBe(true)
+  })
+
+  it('checks the dispatch key for renamed builtins', async () => {
+    const renamed: SerializedGraph = {
+      nodes: [
+        node('$input'),
+        node('alias', { builtin: 'passthrough', inputs: [p('value')], outputs: [p('value')] }),
+        node('$output', { inputs: [p('value')] }),
+      ],
+      edges: [edge('$input.value', 'alias.value'), edge('alias.value', '$output.value')],
+    }
+    expect(await run(renamed, { value: 2 }, fakePool(), undefined, false, ['passthrough'])).toEqual({ value: 2 })
+  })
+
+  it('matches MCP tools by exact id and trailing-* wildcard', async () => {
+    expect(await run(echoGraph, { params: { a: 1 } }, echoPool(), undefined, false, ['mock__echo'])).toEqual({ result: { a: 1 } })
+    expect(await run(echoGraph, { params: { a: 1 } }, echoPool(), undefined, false, ['mock__*'])).toEqual({ result: { a: 1 } })
+    expect(await run(echoGraph, { params: { a: 1 } }, echoPool(), undefined, false, ['other__*'])).toEqual({})
+  })
+
+  it('a container node\'s allowedTools restricts its subgraph', async () => {
+    const each: SerializedGraph = {
+      nodes: [
+        node('$input'),
+        node('each', {
+          forEach: true,
+          allowedTools: ['split_lines'],
+          inputs: [p('items')],
+          outputs: [p('results')],
+          subgraph: passGraph,
+        }),
+        node('$output', { inputs: [p('results')] }),
+      ],
+      edges: [edge('$input.items', 'each.items'), edge('each.results', '$output.results')],
+    }
+    // passthrough inside the forEach is not in the node's allowedTools → per-item outputs empty
+    const out = await run(each, { items: ['x'] })
+    expect(out).toEqual({ results: [{}] })
+  })
+
+  it('nested permissions intersect — a child cannot widen its parent\'s set', async () => {
+    const each: SerializedGraph = {
+      nodes: [
+        node('$input'),
+        node('each', {
+          forEach: true,
+          allowedTools: ['passthrough'], // child allows it...
+          inputs: [p('items')],
+          outputs: [p('results')],
+          subgraph: passGraph,
+        }),
+        node('$output', { inputs: [p('results')] }),
+      ],
+      edges: [edge('$input.items', 'each.items'), edge('each.results', '$output.results')],
+    }
+    // ...but the top-level set does not → still blocked
+    const out = await run(each, { items: ['x'] }, fakePool(), undefined, false, ['split_lines'])
+    expect(out).toEqual({ results: [{}] })
+  })
+
+  it('gates execute_graph itself', async () => {
+    const outer: SerializedGraph = {
+      nodes: [
+        node('$input'),
+        node('execute_graph', { inputs: [p('graph')], outputs: [p('outputs')] }),
+        node('$output', { inputs: [p('outputs')] }),
+      ],
+      edges: [edge('$input.graph', 'execute_graph.graph'), edge('execute_graph.outputs', '$output.outputs')],
+    }
+    const events: NodeEvent[] = []
+    const out = await run(outer, { graph: passGraph }, fakePool(), e => events.push(e), false, ['passthrough'])
+    expect(out).toEqual({})
+    expect(events.some(e => e.type === 'error' && e.nodeId === 'execute_graph')).toBe(true)
+  })
+})
+
+// ── Graph lineage ─────────────────────────────────────────────────────────────
+
+describe('graph lineage', () => {
+  it('assigns an id to a graph on first execution', async () => {
+    const graph: SerializedGraph = {
+      nodes: [node('$input'), node('$output', { inputs: [p('value')] })],
+      edges: [edge('$input.value', '$output.value')],
+    }
+    await run(graph, { value: 1 })
+    expect(graph.id).toMatch(/^g_[0-9a-f]{8}$/)
+  })
+
+  it('execute_graph stamps the child with the parent graph id', async () => {
+    const inner: SerializedGraph = {
+      nodes: [
+        node('$input'),
+        node('passthrough', { inputs: [p('value')], outputs: [p('value')] }),
+        node('$output', { inputs: [p('value')] }),
+      ],
+      edges: [edge('$input.value', 'passthrough.value'), edge('passthrough.value', '$output.value')],
+    }
+    const outer: SerializedGraph = {
+      nodes: [
+        node('$input'),
+        node('execute_graph', { inputs: [p('graph'), p('inputs', true)], outputs: [p('outputs')] }),
+        node('$output', { inputs: [p('outputs')] }),
+      ],
+      edges: [
+        edge('$input.graph', 'execute_graph.graph'),
+        edge('$input.inputs', 'execute_graph.inputs'),
+        edge('execute_graph.outputs', '$output.outputs'),
+      ],
+    }
+    await run(outer, { graph: inner, inputs: { value: 'x' } })
+    expect(outer.id).toBeDefined()
+    expect(inner.parentGraphId).toBe(outer.id)
+  })
+
+  it('does not overwrite an existing parentGraphId', async () => {
+    const inner: SerializedGraph = {
+      parentGraphId: 'g_original',
+      nodes: [node('$input'), node('$output', { inputs: [p('value')] })],
+      edges: [edge('$input.value', '$output.value')],
+    }
+    const outer: SerializedGraph = {
+      nodes: [
+        node('$input'),
+        node('execute_graph', { inputs: [p('graph'), p('inputs', true)], outputs: [p('outputs')] }),
+        node('$output', { inputs: [p('outputs')] }),
+      ],
+      edges: [
+        edge('$input.graph', 'execute_graph.graph'),
+        edge('$input.inputs', 'execute_graph.inputs'),
+        edge('execute_graph.outputs', '$output.outputs'),
+      ],
+    }
+    await run(outer, { graph: inner, inputs: { value: 'x' } })
+    expect(inner.parentGraphId).toBe('g_original')
   })
 })
 

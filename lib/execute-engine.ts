@@ -11,12 +11,13 @@
 
 import OpenAI from 'openai'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
+import { randomBytes } from 'crypto'
 import { topologicalSort } from '../core/topo'
 import type { SerializedGraph, SerializedNode } from '../core/serializer'
 import type { Edge } from '../core/types'
 import { McpPool } from './mcp-pool'
 import { plantGraph, plantGraphTracked, buildCatalogSection } from './plant'
-import { saveGraph, loadGraph } from './graph-store'
+import { saveGraph, loadGraph, listVersions, rollbackGraph } from './graph-store'
 
 export type NodeEvent =
   | { type: 'start';    nodeId: string; depth: number }
@@ -38,6 +39,32 @@ function autoBox(value: unknown): Record<string, unknown> {
   }
   return { value }
 }
+
+// ── Capability permissions ────────────────────────────────────────────────────
+//
+// Permissions thread through execution as a stack of sets — one per ancestor
+// node that declared `allowedTools`. A tool must be allowed by EVERY set, so
+// nesting can only narrow, never widen.
+
+type PermissionSets = string[][]
+
+function matchesPattern(pattern: string, toolId: string): boolean {
+  if (pattern === '*' || pattern === toolId) return true
+  return pattern.endsWith('*') && toolId.startsWith(pattern.slice(0, -1))
+}
+
+function isToolAllowed(toolId: string, perms?: PermissionSets): boolean {
+  return !perms || perms.every(set => set.some(pat => matchesPattern(pat, toolId)))
+}
+
+function assertToolAllowed(toolId: string, perms?: PermissionSets): void {
+  if (!isToolAllowed(toolId, perms))
+    throw new Error(`tool "${toolId}" blocked by allowedTools`)
+}
+
+// ── Graph lineage ─────────────────────────────────────────────────────────────
+
+const newGraphId = () => `g_${randomBytes(4).toString('hex')}`
 
 // ── OpenAI ────────────────────────────────────────────────────────────────────
 
@@ -195,14 +222,26 @@ async function runBuiltin(nodeId: string, inputs: Record<string, unknown>): Prom
 
     case 'save_graph': {
       const name = String(inputs.name ?? '').replace(/[^a-zA-Z0-9_-]/g, '_')
-      saveGraph(name, inputs.graph as SerializedGraph)
-      return { name, saved: true }
+      const version = saveGraph(name, inputs.graph as SerializedGraph)
+      return { name, saved: true, version }
     }
 
     case 'load_graph': {
       const name = String(inputs.name ?? '')
-      const { graph, found } = loadGraph(name)
+      const version = inputs.version ? String(inputs.version) : undefined
+      const { graph, found } = loadGraph(name, version)
       return { graph: graph ?? {}, found }
+    }
+
+    case 'list_graph_versions': {
+      const versions = listVersions(String(inputs.name ?? ''))
+      return { versions, count: versions.length }
+    }
+
+    case 'rollback_graph': {
+      const version = inputs.version ? String(inputs.version) : undefined
+      const result = rollbackGraph(String(inputs.name ?? ''), version)
+      return { graph: result.graph ?? {}, restored: result.restored, version: result.version }
     }
 
     case 'memory_read': {
@@ -232,6 +271,7 @@ async function runForEach(
   onEvent: ((e: NodeEvent) => void) | undefined,
   depth: number,
   parentEvents?: NodeEvent[],
+  perms?: PermissionSets,
 ): Promise<Record<string, unknown>> {
   const raw = inputs.items
   let items: unknown[]
@@ -253,7 +293,7 @@ async function runForEach(
 
   const results: unknown[] = []
   for (const item of items) {
-    const subOutputs = await executeSubgraph(node.subgraph!, { item, ...context }, pool, onEvent, depth + 1, false, parentEvents)
+    const subOutputs = await executeSubgraph(node.subgraph!, { item, ...context }, pool, onEvent, depth + 1, false, parentEvents, perms)
     results.push(subOutputs)
   }
   return { results }
@@ -266,6 +306,7 @@ async function runWhile(
   onEvent: ((e: NodeEvent) => void) | undefined,
   depth: number,
   parentEvents?: NodeEvent[],
+  perms?: PermissionSets,
 ): Promise<Record<string, unknown>> {
   const maxIter = node.constraints?.maxIterations ?? 10
   const indent = '  '.repeat(depth)
@@ -274,7 +315,7 @@ async function runWhile(
 
   for (let i = 0; i < maxIter; i++) {
     console.log(`${indent}  ── pass ${i + 1}`)
-    outputs = await executeSubgraph(node.subgraph!, current, pool, onEvent, depth + 1, false, parentEvents)
+    outputs = await executeSubgraph(node.subgraph!, current, pool, onEvent, depth + 1, false, parentEvents, perms)
     const continuing = !!outputs.continue
     if (outputs.feedback) {
       const fb = String(outputs.feedback).replace(/\n/g, ' ').slice(0, 200)
@@ -300,13 +341,14 @@ async function runRetry(
   onEvent: ((e: NodeEvent) => void) | undefined,
   depth: number,
   parentEvents?: NodeEvent[],
+  perms?: PermissionSets,
 ): Promise<Record<string, unknown>> {
   const maxRetries = node.constraints?.maxRetries ?? 3
   let lastError = ''
 
   for (let attempt = 0; attempt <= maxRetries; attempt++) {
     try {
-      return await executeSubgraph(node.subgraph!, inputs, pool, onEvent, depth + 1, true, parentEvents)
+      return await executeSubgraph(node.subgraph!, inputs, pool, onEvent, depth + 1, true, parentEvents, perms)
     } catch (err) {
       lastError = String(err)
     }
@@ -322,11 +364,12 @@ async function runRoute(
   onEvent: ((e: NodeEvent) => void) | undefined,
   depth: number,
   parentEvents?: NodeEvent[],
+  perms?: PermissionSets,
 ): Promise<Record<string, unknown>> {
   const condition = String(inputs.condition ?? '')
   const branch = node.branches![condition] ?? node.branches!['default']
   if (!branch) throw new Error(`No branch for condition "${condition}" and no default`)
-  return executeSubgraph(branch, inputs, pool, onEvent, depth + 1, false, parentEvents)
+  return executeSubgraph(branch, inputs, pool, onEvent, depth + 1, false, parentEvents, perms)
 }
 
 // Tools exposed to the agent — mirrors the builtin catalog
@@ -424,6 +467,7 @@ async function runAgent(
   inputs: Record<string, unknown>,
   pool: McpPool,
   indent: string,
+  perms?: PermissionSets,
 ): Promise<Record<string, unknown>> {
   const maxTurns = node.constraints?.maxTurns ?? 10
   const model = node.model ?? 'gpt-4o-mini'
@@ -440,7 +484,9 @@ async function runAgent(
       parameters: t.inputSchema,
     },
   }))
-  const allTools = [...AGENT_TOOLS, ...mcpTools]
+  const allTools = [...AGENT_TOOLS, ...mcpTools].filter(
+    t => t.type !== 'function' || isToolAllowed(t.function.name, perms),
+  )
 
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
     {
@@ -471,6 +517,7 @@ async function runAgent(
 
       let toolResult: unknown
       try {
+        assertToolAllowed(toolName, perms)
         if (toolName.includes('__')) {
           const sep = toolName.indexOf('__')
           const serverId = toolName.slice(0, sep)
@@ -501,9 +548,19 @@ export async function executeSubgraph(
   depth = 0,
   throwOnError = false,
   parentEvents?: NodeEvent[],
+  allowedTools?: string[] | PermissionSets,
 ): Promise<Record<string, unknown>> {
   const wire: Wire = new Map()
   const localEvents: NodeEvent[] = []
+
+  // Normalize: callers pass a flat list, recursion passes the accumulated stack
+  const perms: PermissionSets | undefined =
+    allowedTools === undefined ? undefined
+    : allowedTools.length > 0 && Array.isArray(allowedTools[0]) ? (allowedTools as PermissionSets)
+    : [allowedTools as string[]]
+
+  // Lineage — assign an id on first execution so children can reference it
+  const graphId = graph.id ?? (graph.id = newGraphId())
 
   const emit = (e: NodeEvent) => {
     localEvents.push(e)
@@ -523,6 +580,9 @@ export async function executeSubgraph(
 
   for (const nodeId of order) {
     const node = nodeMap.get(nodeId)!
+
+    // A node's own allowedTools narrows the inherited set for everything it spawns
+    const childPerms = node.allowedTools ? [...(perms ?? []), node.allowedTools] : perms
 
     if (nodeId !== '$input') {
       const missing = (node.inputs ?? [])
@@ -560,29 +620,34 @@ export async function executeSubgraph(
         console.log(`${indent}  ✓ ${nodeId} = ${JSON.stringify(node.constraints.literal)}`)
       } else if (node.forEach && node.subgraph) {
         console.log(`${indent}  ↻ ${nodeId} (forEach)`)
-        outputs = await runForEach(node, inputs, pool, onEvent, depth, localEvents)
+        outputs = await runForEach(node, inputs, pool, onEvent, depth, localEvents, childPerms)
         console.log(`${indent}  ✓ ${nodeId} — ${(outputs.results as unknown[]).length} items`)
       } else if (node.loop && node.subgraph) {
         console.log(`${indent}  ↻ ${nodeId} (while)`)
-        outputs = await runWhile(node, inputs, pool, onEvent, depth, localEvents)
+        outputs = await runWhile(node, inputs, pool, onEvent, depth, localEvents, childPerms)
         console.log(`${indent}  ✓ ${nodeId}`)
       } else if (node.retry && node.subgraph) {
         console.log(`${indent}  ↻ ${nodeId} (retry)`)
-        outputs = await runRetry(node, inputs, pool, onEvent, depth, localEvents)
+        outputs = await runRetry(node, inputs, pool, onEvent, depth, localEvents, childPerms)
         console.log(`${indent}  ✓ ${nodeId}`)
       } else if (node.router && node.branches) {
         const cond = String(inputs.condition ?? '')
         console.log(`${indent}  ⑂ ${nodeId} (route → "${cond}")`)
-        outputs = await runRoute(node, inputs, pool, onEvent, depth, localEvents)
+        outputs = await runRoute(node, inputs, pool, onEvent, depth, localEvents, childPerms)
         console.log(`${indent}  ✓ ${nodeId}`)
       } else if (node.agent) {
         console.log(`${indent}  ◈ ${nodeId} (agent, model=${node.model ?? 'gpt-4o-mini'})`)
-        outputs = await runAgent(node, inputs, pool, indent)
+        outputs = await runAgent(node, inputs, pool, indent, childPerms)
       } else if (nodeId === 'plant') {
+        assertToolAllowed('plant', perms)
         console.log(`${indent}  ✦ ${nodeId} — designing graph for: "${inputs.task}"`)
-        outputs = { graph: await plantGraph(String(inputs.task)) }
+        const planted = await plantGraph(String(inputs.task))
+        planted.id ??= newGraphId()
+        planted.parentGraphId = graphId
+        outputs = { graph: planted }
         console.log(`${indent}  ✓ ${nodeId}`)
       } else if (nodeId === 'plant_with_prompt') {
+        assertToolAllowed('plant_with_prompt', perms)
         const task = String(inputs.task ?? '')
         const candidateInstructions = String(inputs.systemPrompt ?? '')
         console.log(`${indent}  ✦ plant_with_prompt — testing prompt on: "${task.slice(0, 60)}..."`)
@@ -611,13 +676,16 @@ export async function executeSubgraph(
         outputs = { summary, nodeCount, errorCount, events: localEvents }
         console.log(`${indent}  👁 observe — ${nodeCount} completed, ${errorCount} errors`)
       } else if (nodeId === 'execute_graph') {
+        assertToolAllowed('execute_graph', perms)
         console.log(`${indent}  ▶ ${nodeId}`)
         const subGraph = inputs.graph as SerializedGraph
+        subGraph.parentGraphId ??= graphId
         const subInputs = (inputs.inputs ?? {}) as Record<string, unknown>
-        const result = await executeSubgraph(subGraph, subInputs, pool, onEvent, depth + 1)
+        const result = await executeSubgraph(subGraph, subInputs, pool, onEvent, depth + 1, false, undefined, childPerms)
         outputs = { outputs: result }
         console.log(`${indent}  ✓ ${nodeId}`)
       } else if (nodeId.includes('__')) {
+        assertToolAllowed(nodeId, perms)
         const sep = nodeId.indexOf('__')
         const serverId = nodeId.slice(0, sep)
         const toolName = nodeId.slice(sep + 2)
@@ -626,6 +694,7 @@ export async function executeSubgraph(
         console.log(`${indent}  ✓ ${nodeId}`)
       } else {
         const builtinId = node.builtin ?? nodeId
+        assertToolAllowed(builtinId, perms)
         outputs = await runBuiltin(builtinId, inputs)
         console.log(`${indent}  ✓ ${nodeId}`)
       }

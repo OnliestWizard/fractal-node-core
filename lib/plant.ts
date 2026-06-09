@@ -106,15 +106,27 @@ const BUILTIN_CATALOG = [
   },
   {
     id: 'save_graph',
-    description: 'Save a graph to the graph library by name. Use after plant or after a successful execution to persist a graph for reuse. Name must be alphanumeric with underscores/hyphens.',
+    description: 'Save a graph to the graph library by name. Use after plant or after a successful execution to persist a graph for reuse. Name must be alphanumeric with underscores/hyphens. Every save is versioned automatically; returns the version id.',
     inputs:  [{ id: 'name', type: 'string' }, { id: 'graph', type: 'object' }],
-    outputs: [{ id: 'name', type: 'string' }, { id: 'saved', type: 'boolean' }],
+    outputs: [{ id: 'name', type: 'string' }, { id: 'saved', type: 'boolean' }, { id: 'version', type: 'string' }],
   },
   {
     id: 'load_graph',
-    description: 'Load a previously saved graph from the graph library by name. Returns the graph object and a found flag. Pass the graph to execute_graph to run it.',
-    inputs:  [{ id: 'name', type: 'string' }],
+    description: 'Load a previously saved graph from the graph library by name. Returns the graph object and a found flag. Pass the graph to execute_graph to run it. Optional version input loads a specific historical version (version id or content hash).',
+    inputs:  [{ id: 'name', type: 'string' }, { id: 'version', type: 'string', optional: true }],
     outputs: [{ id: 'graph', type: 'object' }, { id: 'found', type: 'boolean' }],
+  },
+  {
+    id: 'list_graph_versions',
+    description: 'List the saved version history of a library graph, newest first. Each entry has { version, hash, timestamp }.',
+    inputs:  [{ id: 'name', type: 'string' }],
+    outputs: [{ id: 'versions', type: 'object' }, { id: 'count', type: 'number' }],
+  },
+  {
+    id: 'rollback_graph',
+    description: 'Roll a library graph back to a prior version. With no version input, restores the version before the latest save. Accepts a version id or content hash. The restore is recorded in history.',
+    inputs:  [{ id: 'name', type: 'string' }, { id: 'version', type: 'string', optional: true }],
+    outputs: [{ id: 'graph', type: 'object' }, { id: 'restored', type: 'boolean' }, { id: 'version', type: 'string' }],
   },
   {
     id: 'observe',

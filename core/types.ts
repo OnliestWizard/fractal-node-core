@@ -78,6 +78,11 @@ export interface NodeDefinition {
   // LLM model to use for agent/llm nodes (e.g. 'gpt-4o', 'gpt-4o-mini')
   model?: string
 
+  // Capability permissions — tool/builtin IDs this node's subgraph or agent may
+  // call. Supports exact IDs and trailing-* wildcards (e.g. "filesystem__*").
+  // Nested restrictions intersect: a child can narrow but never widen its parent's set.
+  allowedTools?: string[]
+
   // Runtime — leaf function, subgraph, router branches, or agent tools (mutually exclusive)
   run?: (inputs: Record<string, any>) => any
   subgraph?: IExecutionGraph

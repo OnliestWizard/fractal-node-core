@@ -10,6 +10,10 @@ export interface SerializedNode extends NodeContract {
 }
 
 export interface SerializedGraph {
+  // Lineage — assigned by the executor on first run; parentGraphId is set when
+  // a graph is spawned by a `plant` or `execute_graph` node inside another graph
+  id?: string
+  parentGraphId?: string
   nodes: SerializedNode[]
   edges: Edge[]
 }

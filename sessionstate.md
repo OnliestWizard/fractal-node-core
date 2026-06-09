@@ -1,5 +1,59 @@
 # Session State — fractal-node-core
 
+## Substrate features (2026-06-09 evening) — versioning, permissions, lineage ✓
+
+All three roadmap items implemented, 190 tests passing (18 files), typecheck clean.
+
+### Graph versioning + rollback (`lib/graph-store.ts`)
+
+Every `saveGraph(name, graph)` writes the current file AND a version copy to
+`graphs/.versions/<name>/<epochMs>_<sha256-8>.json`. Duplicate content (same hash
+as latest) is not re-versioned. `saveGraph` now returns the version id.
+
+- `listVersions(name)` → `{ version, hash, timestamp }[]`, newest first
+- `loadGraph(name, version?)` — version accepts full id or bare hash
+- `rollbackGraph(name, version?)` — no version = previous save; restores as
+  current and records the restore as a new history entry (linear history)
+- `FRACTAL_GRAPHS_DIR` env var overrides the store directory (used by tests)
+
+New builtins (in engine + Plant catalog): `save_graph` outputs `version`,
+`load_graph` takes optional `version`, `list_graph_versions`, `rollback_graph`.
+
+### Capability permissions (`lib/execute-engine.ts`)
+
+`node.allowedTools?: string[]` (on `NodeDefinition` → flows to SerializedNode).
+Top-level entry: `executeSubgraph(..., allowedTools)` (8th param, flat list).
+
+- Permissions thread as a **stack of sets** (`string[][]`) — a tool must pass
+  EVERY set, so nesting only narrows, never widens
+- Patterns: exact id, `*`, trailing wildcard (`filesystem__*`)
+- Gated: builtins (by dispatch key, so renamed nodes check `builtin` field),
+  MCP nodes (full `server__tool` id), `plant`, `plant_with_prompt`,
+  `execute_graph`, and agent tool calls (tool list filtered + dispatch guarded)
+- Not gated: $input/$output, literals, observe, container nodes themselves
+- Violations throw `tool "x" blocked by allowedTools` → normal error isolation
+
+### Graph lineage (`core/serializer.ts` + engine)
+
+`SerializedGraph` gains `id?: string`, `parentGraphId?: string`.
+
+- Executor assigns `graph.id = g_<8 hex>` on first execution if missing
+- `plant` node: planted graph gets fresh id + `parentGraphId` = current graph
+- `execute_graph`: child's `parentGraphId ??=` current graph id (existing
+  lineage never overwritten)
+- Lineage persists through `save_graph` since it lives in the JSON
+
+### Tests
+
+`tests/graphStore.test.ts` (new, 9 tests) — round-trip, version history,
+dedupe, load-by-version/hash, rollback default/named/empty. Uses temp dir via
+`FRACTAL_GRAPHS_DIR`.
+`tests/executeEngine.test.ts` +9 — permission allow/block, renamed-builtin
+dispatch key, MCP wildcards, container restriction, intersection narrowing,
+execute_graph gating; lineage id assignment, parent stamping, no-overwrite.
+
+---
+
 ## Executor decision (2026-06-09)
 
 **`lib/execute-engine.ts` is the canonical executor.** All new node types, builtins,
