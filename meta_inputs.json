@@ -1,0 +1,4 @@
+{
+  "task": "Given a 'prompt' input port, write a haiku about that topic using draft_writer and return it as 'haiku'",
+  "inputs": { "prompt": "Write a haiku about recursion" }
+}

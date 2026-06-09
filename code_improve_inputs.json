@@ -1,0 +1,4 @@
+{
+  "problem": "Write a JavaScript function called `flatten` that recursively flattens a nested array to any depth. It must handle: empty arrays, already-flat arrays, mixed nesting depths, and non-array values.",
+  "system": "You are an expert JavaScript developer. When revising, fix all issues raised in the feedback."
+}

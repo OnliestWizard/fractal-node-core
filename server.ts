@@ -88,7 +88,7 @@ function extractOutputs(graph: SerializedGraph, values: Map<string, any>): Recor
 
 // ── App ───────────────────────────────────────────────────────────────────────
 
-export function createApp() {
+export function createApp(sharedPool?: McpPool) {
   const app = express()
   app.use(cors())
   app.use(express.json({ limit: '1mb' }))
@@ -241,17 +241,27 @@ export function createApp() {
       res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
     }
 
-    const pool = new McpPool()
-
-    try {
-      await pool.connect()
-      const outputs = await executeSubgraph(graph, inputs ?? {}, pool, event => send('node', event))
-      send('done', { outputs })
-    } catch (err: any) {
-      send('error', { error: err.message ?? 'Execution failed' })
-    } finally {
-      await pool.close()
-      res.end()
+    if (sharedPool) {
+      try {
+        const outputs = await executeSubgraph(graph, inputs ?? {}, sharedPool, event => send('node', event))
+        send('done', { outputs })
+      } catch (err: any) {
+        send('error', { error: err.message ?? 'Execution failed' })
+      } finally {
+        res.end()
+      }
+    } else {
+      const pool = new McpPool()
+      try {
+        await pool.connect()
+        const outputs = await executeSubgraph(graph, inputs ?? {}, pool, event => send('node', event))
+        send('done', { outputs })
+      } catch (err: any) {
+        send('error', { error: err.message ?? 'Execution failed' })
+      } finally {
+        await pool.close()
+        res.end()
+      }
     }
   })
 
@@ -262,8 +272,12 @@ export function createApp() {
 
 async function main() {
   const port = Number(process.env.PORT ?? 3000)
-  const app = createApp()
-  app.listen(port, () => {
+
+  const pool = new McpPool()
+  await pool.connect()
+
+  const app = createApp(pool)
+  const server = app.listen(port, () => {
     console.log(`fractal server running on http://localhost:${port}`)
     console.log(`  GET  /health`)
     console.log(`  GET  /capabilities`)
@@ -272,6 +286,15 @@ async function main() {
     console.log(`  POST /run`)
     console.log(`  POST /run/stream       (SSE)`)
   })
+
+  const shutdown = async () => {
+    server.close()
+    await pool.close()
+    process.exit(0)
+  }
+
+  process.on('SIGINT',  shutdown)
+  process.on('SIGTERM', shutdown)
 }
 
 main().catch(err => { console.error(err); process.exit(1) })

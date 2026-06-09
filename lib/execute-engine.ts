@@ -4,6 +4,7 @@ import { topologicalSort } from '../core/topo'
 import type { SerializedGraph, SerializedNode } from '../core/serializer'
 import type { Edge } from '../core/types'
 import { McpPool } from './mcp-pool'
+import { plantGraph } from './plant'
 
 export type NodeEvent =
   | { type: 'start';    nodeId: string; depth: number }
@@ -261,6 +262,17 @@ export async function executeSubgraph(
       } else if (node.retry && node.subgraph) {
         console.log(`${indent}  ↻ ${nodeId} (retry)`)
         outputs = await runRetry(node, inputs, pool, onEvent, depth)
+        console.log(`${indent}  ✓ ${nodeId}`)
+      } else if (nodeId === 'plant') {
+        console.log(`${indent}  ✦ ${nodeId} — designing graph for: "${inputs.task}"`)
+        outputs = { graph: await plantGraph(String(inputs.task)) }
+        console.log(`${indent}  ✓ ${nodeId}`)
+      } else if (nodeId === 'execute_graph') {
+        console.log(`${indent}  ▶ ${nodeId}`)
+        const subGraph = inputs.graph as SerializedGraph
+        const subInputs = (inputs.inputs ?? {}) as Record<string, unknown>
+        const result = await executeSubgraph(subGraph, subInputs, pool, onEvent, depth + 1)
+        outputs = { outputs: result }
         console.log(`${indent}  ✓ ${nodeId}`)
       } else if (nodeId.includes('__')) {
         const sep = nodeId.indexOf('__')

@@ -414,19 +414,56 @@ Extracted from `run_execute.ts` into a shared module used by both the CLI and th
 Extracted compiler logic. Export: `plantGraph(task, maxPasses?) → Promise<SerializedGraph>`.
 Used by `run_plant.ts` (CLI) and `POST /plant` (server).
 
+### Meta-execution builtins (`plant` + `execute_graph`) — ADDED ✓
+
+Two new builtin nodes that make the engine self-referential:
+
+**`plant`**
+- Input: `task: string`
+- Output: `graph: object` (a `SerializedGraph`)
+- Calls `plantGraph()` at runtime — a node that designs a graph on the fly using GPT-4o
+
+**`execute_graph`**
+- Inputs: `graph: object`, `inputs: object` (optional)
+- Output: `outputs: object` (all outputs of the executed graph)
+- Calls `executeSubgraph()` recursively — runs a graph as a value
+
+Both are handled as special cases before the MCP `__` check in `executeSubgraph`, since `execute_graph` needs access to `pool` and `onEvent`. Both appear in `BUILTIN_CATALOG` in `lib/plant.ts` so Plant can design graphs that use them.
+
+**Meta-graph pattern** (`meta_graph.json`):
+```
+$input(task, inputs?) → plant → execute_graph → $output(outputs)
+```
+At runtime: executor pauses, GPT-4o designs a new graph from `task`, executor resumes and runs that graph. Graphs that grow graphs.
+
+**Self-improvement loop** — plant this prompt with `run_plant.ts`:
+```
+Given a programming problem in 'problem', write code using draft_writer, have quality_judge
+evaluate it, loop until judge approves (continue=false), return final code.
+```
+Test inputs: `code_improve_inputs.json` (flatten function problem).
+
 ### Server endpoints (added)
 
 | Route | Method | What it does |
 |---|---|---|
 | `/plant` | POST | `{ task }` → runs GPT-4o compiler, returns `{ graph }` |
-| `/execute/stream` | POST | `{ graph, inputs? }` → SSE stream via execute-engine + McpPool (per-request pool) |
+| `/execute/stream` | POST | `{ graph, inputs? }` → SSE stream via execute-engine + persistent McpPool |
+
+### Persistent MCP pool — FIXED ✓
+
+`createApp(sharedPool?: McpPool)` — accepts an optional pre-connected pool.
+`main()` creates and connects one pool at startup, passes it to `createApp(pool)`.
+`/execute/stream` uses it directly — no connect/close per request.
+Graceful shutdown: `SIGINT`/`SIGTERM` → `server.close()` + `pool.close()`.
+Fallback: `createApp()` (no pool) creates a per-request pool — keeps tests working.
 
 ### gitignored runtime files
 
 `.env.local`, `inputs.json`, `graph.json`, `trace.json`, `memory-store.json`
+`meta_graph.json`, `meta_inputs.json`, `code_improve_inputs.json` (test/scratch files)
 
 ---
 
 ## Known issues
-- MCP pool reconnects per `/execute/stream` request — adds ~1-2s overhead per run
 - `flaky_op` counter is module-level; resets only on server restart

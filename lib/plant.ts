@@ -62,6 +62,18 @@ const BUILTIN_CATALOG = [
     inputs:  [{ id: 'failTimes', type: 'number' }],
     outputs: [{ id: 'result', type: 'string' }],
   },
+  {
+    id: 'plant',
+    description: 'Design a new execution graph from a natural-language task description (LLM, GPT-4o). Output "graph" is a SerializedGraph object ready to pass to execute_graph.',
+    inputs:  [{ id: 'task', type: 'string' }],
+    outputs: [{ id: 'graph', type: 'object' }],
+  },
+  {
+    id: 'execute_graph',
+    description: 'Execute a SerializedGraph object at runtime. Connect a plant node\'s "graph" output here. "inputs" is an optional object of input values for the subgraph. "outputs" is an object containing all of the executed graph\'s output values.',
+    inputs:  [{ id: 'graph', type: 'object' }, { id: 'inputs', type: 'object', optional: true }],
+    outputs: [{ id: 'outputs', type: 'object' }],
+  },
 ]
 
 const SYSTEM_TEMPLATE = `You are a graph compiler. Design execution graphs for AI agent workflows.

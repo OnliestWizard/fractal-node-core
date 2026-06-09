@@ -1,0 +1,106 @@
+{
+  "nodes": [
+    {
+      "id": "$input",
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "task",
+          "type": "string"
+        },
+        {
+          "id": "inputs",
+          "type": "object",
+          "optional": true
+        }
+      ]
+    },
+    {
+      "id": "plant",
+      "inputs": [
+        {
+          "id": "task",
+          "type": "string"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "graph",
+          "type": "object"
+        }
+      ]
+    },
+    {
+      "id": "execute_graph",
+      "inputs": [
+        {
+          "id": "graph",
+          "type": "object"
+        },
+        {
+          "id": "inputs",
+          "type": "object",
+          "optional": true
+        }
+      ],
+      "outputs": [
+        {
+          "id": "outputs",
+          "type": "object"
+        }
+      ]
+    },
+    {
+      "id": "$output",
+      "inputs": [
+        {
+          "id": "outputs",
+          "type": "object"
+        }
+      ],
+      "outputs": []
+    }
+  ],
+  "edges": [
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "task"
+      },
+      "to": {
+        "nodeId": "plant",
+        "portId": "task"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "inputs"
+      },
+      "to": {
+        "nodeId": "execute_graph",
+        "portId": "inputs"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "plant",
+        "portId": "graph"
+      },
+      "to": {
+        "nodeId": "execute_graph",
+        "portId": "graph"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "execute_graph",
+        "portId": "outputs"
+      },
+      "to": {
+        "nodeId": "$output",
+        "portId": "outputs"
+      }
+    }
+  ]
+}
