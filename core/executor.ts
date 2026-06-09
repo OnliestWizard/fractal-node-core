@@ -1,3 +1,13 @@
+// LEGACY EXECUTOR — runs deserialized ExecutionGraphs against a RuntimeRegistry.
+//
+// Kept because the registry/emitter pipeline depends on it: serialize/deserialize
+// round-trips, the /run and /run/stream server routes, the CLI runners under
+// node/graphs, and emit-parity tests for JS/Kotlin/Swift.
+//
+// The CANONICAL executor is lib/execute-engine.ts — it has the full control-flow
+// set (forEach/while/retry/router/agent), MCP tools, builtins, and the meta nodes.
+// Add new node types and execution semantics THERE, not here.
+
 import OpenAI from 'openai'
 import { IExecutionGraph, Port } from './types'
 import { topologicalSort } from './topo'

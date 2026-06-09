@@ -6,7 +6,8 @@
     "demo": "tsx run.ts",
     "server": "tsx server.ts",
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "typecheck": "tsc --noEmit"
   },
   "devDependencies": {
     "@types/cors": "^2.8.19",

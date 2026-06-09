@@ -56,6 +56,8 @@ export interface NodeDefinition {
     maxIterations?: number
     maxTurns?: number
     maxRetries?: number
+    // When present, the node emits { value: literal } instead of running — constant node
+    literal?: unknown
   }
 
   // When true, the subgraph runs repeatedly until $output.continue === false

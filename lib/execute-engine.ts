@@ -1,3 +1,14 @@
+// CANONICAL EXECUTOR — this is the engine that runs graphs in production.
+//
+// All new node types, builtins, and control-flow features go here. It powers:
+//   - run_execute.ts (CLI), POST /execute/stream and POST /plant (server)
+//   - the visual editor's run path, Plant-generated graphs, MCP tools,
+//     and the meta nodes (plant, execute_graph, observe)
+//
+// core/executor.ts is the LEGACY executor — kept for the registry/emitter
+// pipeline (serialize/deserialize round-trips, JS/Kotlin/Swift emit parity).
+// Do not add new execution semantics there.
+
 import OpenAI from 'openai'
 import { readFileSync, writeFileSync, existsSync } from 'fs'
 import { topologicalSort } from '../core/topo'
@@ -614,7 +625,7 @@ export async function executeSubgraph(
         outputs = { result }
         console.log(`${indent}  ✓ ${nodeId}`)
       } else {
-        const builtinId = (node as Record<string, unknown>).builtin as string ?? nodeId
+        const builtinId = node.builtin ?? nodeId
         outputs = await runBuiltin(builtinId, inputs)
         console.log(`${indent}  ✓ ${nodeId}`)
       }

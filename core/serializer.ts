@@ -5,6 +5,8 @@ export interface SerializedNode extends NodeContract {
   subgraph?: SerializedGraph
   branches?: Record<string, SerializedGraph>
   tools?: NodeContract[]
+  /** Catalog ID to dispatch when the node is renamed (e.g. id "params_pack" → builtin "pack") */
+  builtin?: string
 }
 
 export interface SerializedGraph {

@@ -36,10 +36,10 @@ export async function loadMcpCatalog(configPath = 'mcp.json'): Promise<CatalogNo
       args: server.args ?? [],
     })
 
-    const client = new Client({ name: 'fractal-plant', version: '0.1.0' }, { timeout: 30000 })
+    const client = new Client({ name: 'fractal-plant', version: '0.1.0' })
 
     try {
-      await client.connect(transport)
+      await client.connect(transport, { timeout: 30000 })
       const { tools } = await client.listTools()
 
       for (const tool of tools) {

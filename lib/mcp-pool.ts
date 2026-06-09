@@ -24,9 +24,9 @@ export class McpPool {
     for (const server of config.servers) {
       const env = { ...(process.env as Record<string, string>), ...(server.env ?? {}) }
       const transport = new StdioClientTransport({ command: server.command, args: server.args ?? [], env })
-      const client = new Client({ name: 'fractal-execute', version: '0.1.0' }, { timeout: 30000 })
+      const client = new Client({ name: 'fractal-execute', version: '0.1.0' })
       try {
-        await client.connect(transport)
+        await client.connect(transport, { timeout: 30000 })
         this.clients.set(server.name, client)
         console.log(`[pool] connected: ${server.name}`)
       } catch (err) {

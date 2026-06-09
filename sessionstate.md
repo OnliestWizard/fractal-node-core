@@ -1,5 +1,24 @@
 # Session State — fractal-node-core
 
+## Executor decision (2026-06-09)
+
+**`lib/execute-engine.ts` is the canonical executor.** All new node types, builtins,
+and control-flow semantics go there. It powers run_execute.ts, /execute/stream,
+/plant, the editor run path, MCP tools, and the meta nodes.
+
+**`core/executor.ts` is legacy** — kept for the registry/emitter pipeline
+(serialize/deserialize round-trips, /run and /run/stream, emit-parity tests for
+JS/Kotlin/Swift). Frozen: no new execution semantics.
+
+Both files carry header comments stating this. The duplicated router/agent
+implementations in core/executor.ts are intentionally not maintained in parallel.
+
+`tests/executeEngine.test.ts` (37 tests) covers the canonical engine: wiring,
+builtins (literal/pack/pluck/split_lines/combine_results/run_js), builtin-field
+dispatch, error isolation, MCP auto-boxing, forEach/while/retry/router, observe,
+execute_graph, and event depth — all with stub builtins and a fake MCP pool,
+no API keys needed.
+
 ## What this project is
 A graph-based execution engine where nodes are connected by typed edges and graphs can be embedded as nodes — the fractal part. Define logic once, emit to any platform (JS, Kotlin, etc.) natively. No runtime bridges.
 
@@ -7,7 +26,7 @@ A graph-based execution engine where nodes are connected by typed edges and grap
 
 ---
 
-## Current state: WORKING — 135 tests passing, 16 test files
+## Current state: WORKING — 172 tests passing, 17 test files
 
 ```
 npx tsx run.ts                                            # 3-level demo with execution tracing
@@ -19,8 +38,8 @@ npx tsx run_memory.ts read "https://..."                  # Recall: read stored 
 npx tsx run_tool_agent.ts "your prompt"                   # ToolAgent: LLM-driven tool-calling loop
 npx tsx run_memory_or_fetch.ts "https://..." "question"   # MemoryOrFetch: cache-hit/miss router demo
 npm run server                                            # start execution server on port 3000
-npm test                                                  # vitest run (135 tests, 16 files)
-npx tsc --noEmit                                          # type check (zero errors in project code)
+npm test                                                  # vitest run (172 tests, 17 files)
+npm run typecheck                                         # tsc --noEmit (zero errors)
 ```
 
 ## Confirmed live runs
