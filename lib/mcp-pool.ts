@@ -7,6 +7,7 @@ interface McpServerConfig {
   transport: 'stdio'
   command: string
   args?: string[]
+  env?: Record<string, string>
 }
 
 export class McpPool {
@@ -21,7 +22,8 @@ export class McpPool {
     }
 
     for (const server of config.servers) {
-      const transport = new StdioClientTransport({ command: server.command, args: server.args ?? [] })
+      const env = { ...(process.env as Record<string, string>), ...(server.env ?? {}) }
+      const transport = new StdioClientTransport({ command: server.command, args: server.args ?? [], env })
       const client = new Client({ name: 'fractal-execute', version: '0.1.0' }, { timeout: 30000 })
       try {
         await client.connect(transport)
@@ -44,6 +46,23 @@ export class McpPool {
       return texts.length === 1 ? texts[0] : texts.join('\n')
     }
     return result.content
+  }
+
+  async listTools(): Promise<Array<{ id: string; description: string; inputSchema: Record<string, unknown> }>> {
+    const results: Array<{ id: string; description: string; inputSchema: Record<string, unknown> }> = []
+    for (const [serverId, client] of this.clients) {
+      try {
+        const { tools } = await client.listTools()
+        for (const tool of tools) {
+          results.push({
+            id: `${serverId}__${tool.name}`,
+            description: tool.description ?? '',
+            inputSchema: (tool.inputSchema ?? { type: 'object', properties: {} }) as Record<string, unknown>,
+          })
+        }
+      } catch { /* skip unreachable servers */ }
+    }
+    return results
   }
 
   async close(): Promise<void> {

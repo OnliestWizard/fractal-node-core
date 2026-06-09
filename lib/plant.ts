@@ -157,8 +157,10 @@ Hard rules:
 3. Every edge nodeId and portId must exactly match an id on an existing node and an existing port on that node.
 4. No cycles.
 
-Available leaf nodes — use these ids exactly, and copy their port shapes faithfully:
+Available leaf nodes — copy their port shapes faithfully:
 CATALOG_PLACEHOLDER
+
+IMPORTANT: If you need multiple instances of the same catalog node (e.g. two draft_writer calls), give each a unique "id" but add "builtin": "<catalog-id>" so the executor knows which builtin to call. Example: { "id": "params_pack", "builtin": "pack", "inputs": [...], "outputs": [...] }. If you only need one instance, use the catalog id directly as the node id.
 
 Control-flow nodes (optional, for iteration):
 You may embed a subgraph inside a node to create loops. Each subgraph is a full SerializedGraph with its own $input / $output boundary nodes.

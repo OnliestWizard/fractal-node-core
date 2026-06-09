@@ -419,6 +419,18 @@ async function runAgent(
   const task = String(inputs.task ?? '')
   const context = inputs.context ? `\n\nContext:\n${String(inputs.context)}` : ''
 
+  // Merge builtin tools with live MCP tools from the pool
+  const mcpToolDefs = await pool.listTools()
+  const mcpTools: OpenAI.Chat.ChatCompletionTool[] = mcpToolDefs.map(t => ({
+    type: 'function',
+    function: {
+      name: t.id,
+      description: t.description,
+      parameters: t.inputSchema,
+    },
+  }))
+  const allTools = [...AGENT_TOOLS, ...mcpTools]
+
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
     {
       role: 'system',
@@ -430,7 +442,7 @@ async function runAgent(
   const steps: Array<{ tool: string; args: unknown; result: unknown }> = []
 
   for (let turn = 0; turn < maxTurns; turn++) {
-    const response = await oai().chat.completions.create({ model, messages, tools: AGENT_TOOLS })
+    const response = await oai().chat.completions.create({ model, messages, tools: allTools })
     const msg = response.choices[0].message
     messages.push(msg)
 
@@ -446,9 +458,16 @@ async function runAgent(
       const toolArgs = JSON.parse(call.function.arguments) as Record<string, unknown>
       console.log(`${indent}    → ${toolName}(${Object.keys(toolArgs).join(', ')})`)
 
-      let toolResult: Record<string, unknown>
+      let toolResult: unknown
       try {
-        toolResult = await runBuiltin(toolName, toolArgs)
+        if (toolName.includes('__')) {
+          const sep = toolName.indexOf('__')
+          const serverId = toolName.slice(0, sep)
+          const mcpToolName = toolName.slice(sep + 2)
+          toolResult = { result: await pool.callTool(serverId, mcpToolName, toolArgs) }
+        } else {
+          toolResult = await runBuiltin(toolName, toolArgs)
+        }
       } catch (e) {
         toolResult = { error: String(e) }
       }
@@ -595,7 +614,8 @@ export async function executeSubgraph(
         outputs = { result }
         console.log(`${indent}  ✓ ${nodeId}`)
       } else {
-        outputs = await runBuiltin(nodeId, inputs)
+        const builtinId = (node as Record<string, unknown>).builtin as string ?? nodeId
+        outputs = await runBuiltin(builtinId, inputs)
         console.log(`${indent}  ✓ ${nodeId}`)
       }
 

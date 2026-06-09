@@ -1,0 +1,97 @@
+{
+  "nodes": [
+    {
+      "id": "$input",
+      "inputs": [],
+      "outputs": []
+    },
+    {
+      "id": "github__search_repositories",
+      "inputs": [
+        {
+          "id": "params",
+          "type": "object"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "result",
+          "type": "any"
+        }
+      ]
+    },
+    {
+      "id": "params_const",
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "value",
+          "type": "object"
+        }
+      ],
+      "constraints": {
+        "literal": {
+          "query": "user:OnliestWizard",
+          "sort": "updated"
+        }
+      }
+    },
+    {
+      "id": "draft_writer",
+      "inputs": [
+        {
+          "id": "prompt",
+          "type": "string"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "response",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "$output",
+      "inputs": [
+        {
+          "id": "summary",
+          "type": "string"
+        }
+      ],
+      "outputs": []
+    }
+  ],
+  "edges": [
+    {
+      "from": {
+        "nodeId": "params_const",
+        "portId": "value"
+      },
+      "to": {
+        "nodeId": "github__search_repositories",
+        "portId": "params"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "github__search_repositories",
+        "portId": "result"
+      },
+      "to": {
+        "nodeId": "draft_writer",
+        "portId": "prompt"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "draft_writer",
+        "portId": "response"
+      },
+      "to": {
+        "nodeId": "$output",
+        "portId": "summary"
+      }
+    }
+  ]
+}
