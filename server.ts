@@ -10,6 +10,8 @@ import { emitGraphSwift } from './emitters/swift/emitSwift'
 import type { SerializedGraph } from './core/serializer'
 import { plantGraph } from './lib/plant'
 import { executeSubgraph } from './lib/execute-engine'
+import type { NodeEvent } from './lib/execute-engine'
+import { replayTrace } from './lib/replay'
 import { McpPool } from './lib/mcp-pool'
 
 // ── Built-in capability registry ─────────────────────────────────────────────
@@ -218,6 +220,29 @@ export function createApp(sharedPool?: McpPool) {
     } catch (err: any) {
       res.status(500).json({ error: err.message ?? 'Plant failed' })
     }
+  })
+
+  // POST /replay
+  // Body: { events: NodeEvent[], speed?: number } — events from a saved trace
+  // Returns: SSE stream replaying the recorded node events (same format as
+  // /execute/stream) followed by a done event with a replay summary. Nothing
+  // is re-executed. speed: 0 = instant (default), 1 = recorded pace.
+  app.post('/replay', async (req, res) => {
+    const { events, speed } = req.body as { events?: NodeEvent[]; speed?: number }
+    if (!Array.isArray(events)) return res.status(400).json({ error: 'Missing events' })
+
+    res.setHeader('Content-Type', 'text/event-stream')
+    res.setHeader('Cache-Control', 'no-cache')
+    res.setHeader('Connection', 'keep-alive')
+    res.flushHeaders()
+
+    const send = (event: string, data: unknown) => {
+      res.write(`event: ${event}\ndata: ${JSON.stringify(data)}\n\n`)
+    }
+
+    const summary = await replayTrace(events, e => send('node', e), speed ?? 0)
+    send('done', { summary })
+    res.end()
   })
 
   // POST /execute/stream

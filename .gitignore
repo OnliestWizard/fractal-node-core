@@ -5,3 +5,10 @@ inputs.json
 graph.json
 trace.json
 memory-store.json
+graphs/.versions/
+meta_saver_graph.json
+meta_saver_inputs.json
+meta_saver_trace.json
+rollback_graph.json
+rollback_inputs.json
+rollback_trace.json

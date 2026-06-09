@@ -21,9 +21,13 @@ async function main() {
   const args = parseArgs(process.argv.slice(2))
 
   if (!args.graph) {
-    console.error('Usage: npx tsx run_execute.ts --graph graph.json --inputs-file inputs.json [--out trace.json]')
+    console.error('Usage: npx tsx run_execute.ts --graph graph.json --inputs-file inputs.json [--out trace.json] [--allowed-tools tool1,tool2,prefix__*]')
     process.exit(1)
   }
+
+  const allowedTools = args['allowed-tools']
+    ? args['allowed-tools'].split(',').map(t => t.trim()).filter(Boolean)
+    : undefined
 
   const graph: SerializedGraph = JSON.parse(readFileSync(args.graph, 'utf8'))
   const userInputs: Record<string, unknown> = args['inputs-file']
@@ -36,7 +40,7 @@ async function main() {
   console.log(`\n── executing ${'─'.repeat(40)}`)
 
   const events: unknown[] = []
-  const outputs = await executeSubgraph(graph, userInputs, pool, e => events.push(e))
+  const outputs = await executeSubgraph(graph, userInputs, pool, e => events.push(e), 0, false, undefined, allowedTools)
 
   await pool.close()
 

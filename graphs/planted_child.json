@@ -1,0 +1,63 @@
+{
+  "nodes": [
+    {
+      "id": "$input",
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "topic",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "draft_writer",
+      "inputs": [
+        {
+          "id": "prompt",
+          "type": "string"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "response",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "$output",
+      "inputs": [
+        {
+          "id": "haiku",
+          "type": "string"
+        }
+      ],
+      "outputs": []
+    }
+  ],
+  "edges": [
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "topic"
+      },
+      "to": {
+        "nodeId": "draft_writer",
+        "portId": "prompt"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "draft_writer",
+        "portId": "response"
+      },
+      "to": {
+        "nodeId": "$output",
+        "portId": "haiku"
+      }
+    }
+  ],
+  "id": "g_3b9a1da7",
+  "parentGraphId": "g_d434da03"
+}

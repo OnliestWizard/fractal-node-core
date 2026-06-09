@@ -1,8 +1,44 @@
 # Session State — fractal-node-core
 
+## Execution replay (2026-06-09 late) — COMPLETE ✓ (last substrate roadmap item)
+
+Replay = feed saved trace events back as synthetic `onEvent` calls. Nothing re-executes.
+198 tests passing (19 files), typecheck clean.
+
+- **`NodeEvent.t?: number`** — monotonic ms timestamp stamped in the engine's `emit()`
+  (only diffs are meaningful). Flows into trace files via run_execute automatically.
+- **`lib/replay.ts`** — `replayTrace(events, onEvent, speed)` → `ReplaySummary`
+  (eventCount, nodeCount, errorCount, durationMs). speed: 0 = instant (default),
+  1 = recorded pace, N = N× faster. Untimestamped (legacy) traces replay instantly.
+- **`run_replay.ts`** — `npx tsx run_replay.ts --trace trace.json [--speed 1]`
+  Prints timeline (▶/✓/✗, durations, depth indent), summary, recorded outputs.
+- **`POST /replay`** — `{ events, speed? }` → SSE stream identical in shape to
+  /execute/stream (node events + done with summary), so the editor canvas can
+  animate a past run with zero execution. 400 JSON if events missing.
+- **Live confirmed**: legacy meta_saver_trace.json replayed instantly (plant's
+  39.9s call visible in timeline — the Plant-debugging use case); fresh
+  rollback_trace.json recorded with timestamps (22ms span) and replayed at
+  recorded pace.
+- `tests/replay.test.ts` (8 tests): order preservation, summary, instant default,
+  speed pacing, legacy traces, engine t monotonicity, SSE endpoint + 400.
+
+---
+
 ## Substrate features (2026-06-09 evening) — versioning, permissions, lineage ✓
 
 All three roadmap items implemented, 190 tests passing (18 files), typecheck clean.
+
+### LIVE CONFIRMED ✓ (planted graphs, real GPT-4o + MCP)
+
+- **meta_saver_graph.json** (Plant pass 1/5): `$input(task) → plant → save_graph("planted_child") → $output(version, graph)`. Plant picked up the new `version` output port from the updated catalog on its own.
+- **Lineage live**: planted child came out stamped `id: g_3b9a1da7`, `parentGraphId: g_<runtime id of meta graph>`; both persisted in `graphs/planted_child.json` via save_graph.
+- **Versioning live**: two runs (haiku task, limerick task) → two version files in `graphs/.versions/planted_child/`. Hashes distinguish content.
+- **rollback_graph.json** (Plant pass 1/5): `$input(name) → list_graph_versions + rollback_graph → $output(count, restored, version)`. Run 1: count=2, restored=true, current file verified = version-1 haiku content (matching hash). Run 2 (with exact allowlist): count=3, rolled forward-back to limerick — linear history works, 4 entries total.
+- **Permissions live**: `run_execute.ts` gained `--allowed-tools tool1,tool2,prefix__*` flag. Blocked run: `--allowed-tools save_graph` → `✗ plant — tool "plant" blocked by allowedTools` (before any LLM call), save_graph + $output skipped via normal error isolation. Allowed run: exact list `list_graph_versions,rollback_graph` → clean pass.
+
+**Known gap**: a graph's runtime-assigned `id` is only persisted if the graph passes through `save_graph` — run_execute does not write the id back to the input file, so a child's `parentGraphId` may reference an id that exists nowhere on disk. Fine for now; revisit if lineage queries become a feature.
+
+Scratch files gitignored: `meta_saver_graph/inputs/trace.json`, `rollback_graph/inputs.json`, `graphs/.versions/`.
 
 ### Graph versioning + rollback (`lib/graph-store.ts`)
 

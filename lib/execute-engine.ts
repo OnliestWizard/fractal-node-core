@@ -19,10 +19,15 @@ import { McpPool } from './mcp-pool'
 import { plantGraph, plantGraphTracked, buildCatalogSection } from './plant'
 import { saveGraph, loadGraph, listVersions, rollbackGraph } from './graph-store'
 
-export type NodeEvent =
+export type NodeEvent = (
   | { type: 'start';    nodeId: string; depth: number }
   | { type: 'complete'; nodeId: string; durationMs: number; depth: number }
   | { type: 'error';    nodeId: string; error: string; durationMs: number; depth: number }
+) & {
+  // Monotonic timestamp (ms) stamped at emit — only diffs between events are
+  // meaningful. Drives paced playback in lib/replay.ts.
+  t?: number
+}
 
 type Wire = Map<string, unknown>
 const wkey = (nodeId: string, portId: string) => `${nodeId}:${portId}`
@@ -563,6 +568,7 @@ export async function executeSubgraph(
   const graphId = graph.id ?? (graph.id = newGraphId())
 
   const emit = (e: NodeEvent) => {
+    e.t = Math.round(performance.now() * 10) / 10
     localEvents.push(e)
     parentEvents?.push(e)
     onEvent?.(e)
