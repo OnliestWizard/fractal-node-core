@@ -3,6 +3,7 @@ import { validateGraph } from '../core/validator'
 import type { ValidationError } from '../core/validator'
 import type { SerializedGraph } from '../core/serializer'
 import { loadMcpCatalog } from './mcp-catalog'
+import { listGraphs } from './graph-store'
 
 let _client: OpenAI | undefined
 const client = () => (_client ??= new OpenAI())
@@ -28,9 +29,15 @@ const BUILTIN_CATALOG = [
   },
   {
     id: 'quality_judge',
-    description: 'Evaluate a draft — outputs response, a boolean continue flag, and feedback string (LLM, gpt-4o)',
-    inputs:  [{ id: 'prompt', type: 'string' }, { id: 'draft', type: 'string' }],
+    description: 'Evaluate a draft — outputs response, a boolean continue flag, and feedback string (LLM, gpt-4o). If testResults is provided, uses actual test pass/fail to inform the decision.',
+    inputs:  [{ id: 'prompt', type: 'string' }, { id: 'draft', type: 'string' }, { id: 'testResults', type: 'string', optional: true }],
     outputs: [{ id: 'response', type: 'string' }, { id: 'continue', type: 'boolean' }, { id: 'feedback', type: 'string' }],
+  },
+  {
+    id: 'run_js',
+    description: 'Execute JavaScript code against an array of test cases. Detects the function name automatically. Returns pass/fail results and a human-readable summary. Use after draft_writer to verify generated code is correct.',
+    inputs:  [{ id: 'code', type: 'string' }, { id: 'tests', type: 'object' }],
+    outputs: [{ id: 'results', type: 'object' }, { id: 'allPassed', type: 'boolean' }, { id: 'summary', type: 'string' }],
   },
   {
     id: 'memory_read',
@@ -63,6 +70,12 @@ const BUILTIN_CATALOG = [
     outputs: [{ id: 'result', type: 'string' }],
   },
   {
+    id: 'plant_with_prompt',
+    description: 'Test a candidate Plant system prompt by running it against a task. Returns whether a valid graph was produced and how many correction passes it needed. Lower passes = better prompt. Use in a self-improvement loop to evolve the Plant prompt.',
+    inputs:  [{ id: 'task', type: 'string' }, { id: 'systemPrompt', type: 'string' }],
+    outputs: [{ id: 'valid', type: 'boolean' }, { id: 'passes', type: 'number' }],
+  },
+  {
     id: 'plant',
     description: 'Design a new execution graph from a natural-language task description (LLM, GPT-4o). Output "graph" is a SerializedGraph object ready to pass to execute_graph.',
     inputs:  [{ id: 'task', type: 'string' }],
@@ -70,9 +83,44 @@ const BUILTIN_CATALOG = [
   },
   {
     id: 'execute_graph',
-    description: 'Execute a SerializedGraph object at runtime. Connect a plant node\'s "graph" output here. "inputs" is an optional object of input values for the subgraph. "outputs" is an object containing all of the executed graph\'s output values.',
+    description: 'Execute a SerializedGraph object at runtime. "inputs" is an optional object of input values. "outputs" is an object containing ALL of the subgraph\'s output values keyed by port name — use the pluck node to extract individual fields.',
     inputs:  [{ id: 'graph', type: 'object' }, { id: 'inputs', type: 'object', optional: true }],
     outputs: [{ id: 'outputs', type: 'object' }],
+  },
+  {
+    id: 'pack',
+    description: 'Build an object from up to 6 key/value pairs. Use to construct the inputs object for execute_graph when you need to pass individual port values as a named bundle. key1/value1 through key6/value6 — omit unused pairs.',
+    inputs:  [
+      { id: 'key1', type: 'string' }, { id: 'value1', type: 'any' },
+      { id: 'key2', type: 'string', optional: true }, { id: 'value2', type: 'any', optional: true },
+      { id: 'key3', type: 'string', optional: true }, { id: 'value3', type: 'any', optional: true },
+      { id: 'key4', type: 'string', optional: true }, { id: 'value4', type: 'any', optional: true },
+    ],
+    outputs: [{ id: 'object', type: 'object' }],
+  },
+  {
+    id: 'pluck',
+    description: 'Extract a single field from an object by key. Use after execute_graph to pull a specific field out of execute_graph.outputs (e.g. pluck(execute_graph.outputs, "code") → value).',
+    inputs:  [{ id: 'object', type: 'object' }, { id: 'key', type: 'string' }],
+    outputs: [{ id: 'value', type: 'any' }],
+  },
+  {
+    id: 'save_graph',
+    description: 'Save a graph to the graph library by name. Use after plant or after a successful execution to persist a graph for reuse. Name must be alphanumeric with underscores/hyphens.',
+    inputs:  [{ id: 'name', type: 'string' }, { id: 'graph', type: 'object' }],
+    outputs: [{ id: 'name', type: 'string' }, { id: 'saved', type: 'boolean' }],
+  },
+  {
+    id: 'load_graph',
+    description: 'Load a previously saved graph from the graph library by name. Returns the graph object and a found flag. Pass the graph to execute_graph to run it.',
+    inputs:  [{ id: 'name', type: 'string' }],
+    outputs: [{ id: 'graph', type: 'object' }, { id: 'found', type: 'boolean' }],
+  },
+  {
+    id: 'observe',
+    description: 'Snapshot the current execution trace at this point in the graph. The executor injects the live event list automatically — no required inputs. Optional "trigger" input (any type) controls ordering: wire any upstream output to trigger to force observe to run after that node. Outputs a human-readable summary, counts, and the raw events array.',
+    inputs:  [{ id: 'trigger', type: 'any', optional: true }],
+    outputs: [{ id: 'summary', type: 'string' }, { id: 'nodeCount', type: 'number' }, { id: 'errorCount', type: 'number' }, { id: 'events', type: 'object' }],
   },
 ]
 
@@ -138,9 +186,52 @@ While node — runs the subgraph until $output.continue is false:
   IMPORTANT: any value you want fed back must use the same port name in both $input.outputs and $output.inputs.
   The while node's outputs must NOT include "continue" — runWhile strips it before returning.
 
+  CRITICAL WIRING RULES for while loops (these mistakes cause silent bugs):
+  1. The while node's outer inputs are context-only (e.g. prompt, system). Do NOT wire an outer input into a subgraph feedback port like "draft" — the subgraph feedback ports are populated by the subgraph's own $output on each iteration.
+  2. The subgraph $output.draft must come from the node that actually produced the draft (e.g. draft_writer.response), NOT from a judge/evaluator node. The judge's "response" is evaluation text, not the draft itself.
+  3. Every port you want to survive to the next iteration must appear in BOTH $input.outputs AND $output.inputs with the same name, and must have an edge wiring it into $output.
+
+  Concrete example — a write/judge refinement loop:
+  Outer node: { "id": "refine", "loop": true, "constraints": {"maxIterations": 5},
+    "inputs":  [{"id":"prompt","type":"string"}],
+    "outputs": [{"id":"draft","type":"string"}],
+    "subgraph": {
+      "nodes": [
+        {"id":"$input","inputs":[],"outputs":[
+          {"id":"prompt","type":"string"},
+          {"id":"draft","type":"string","optional":true},
+          {"id":"feedback","type":"string","optional":true}
+        ]},
+        {"id":"draft_writer","inputs":[{"id":"prompt","type":"string"},{"id":"draft","type":"string","optional":true},{"id":"feedback","type":"string","optional":true}],"outputs":[{"id":"response","type":"string"}]},
+        {"id":"quality_judge","inputs":[{"id":"prompt","type":"string"},{"id":"draft","type":"string"}],"outputs":[{"id":"response","type":"string"},{"id":"continue","type":"boolean"},{"id":"feedback","type":"string"}]},
+        {"id":"$output","inputs":[
+          {"id":"draft","type":"string"},
+          {"id":"feedback","type":"string"},
+          {"id":"continue","type":"boolean"}
+        ],"outputs":[]}
+      ],
+      "edges": [
+        {"from":{"nodeId":"$input","portId":"prompt"},   "to":{"nodeId":"draft_writer","portId":"prompt"}},
+        {"from":{"nodeId":"$input","portId":"draft"},    "to":{"nodeId":"draft_writer","portId":"draft"}},
+        {"from":{"nodeId":"$input","portId":"feedback"}, "to":{"nodeId":"draft_writer","portId":"feedback"}},
+        {"from":{"nodeId":"$input","portId":"prompt"},   "to":{"nodeId":"quality_judge","portId":"prompt"}},
+        {"from":{"nodeId":"draft_writer","portId":"response"}, "to":{"nodeId":"quality_judge","portId":"draft"}},
+        {"from":{"nodeId":"draft_writer","portId":"response"}, "to":{"nodeId":"$output","portId":"draft"}},
+        {"from":{"nodeId":"quality_judge","portId":"continue"},"to":{"nodeId":"$output","portId":"continue"}},
+        {"from":{"nodeId":"quality_judge","portId":"feedback"}, "to":{"nodeId":"$output","portId":"feedback"}}
+      ]
+    }
+  }
+  Note: draft_writer.response goes to BOTH quality_judge.draft AND $output.draft. quality_judge.feedback goes to $output.feedback so it feeds back to draft_writer.feedback next iteration.
+
 Retry node — retries the subgraph on exception:
   Add "retry": true and "constraints": {"maxRetries": N} to the node.
   The subgraph is re-run up to maxRetries+1 times total; throws if all attempts fail.
+
+Literal value nodes — use whenever you need a hardcoded constant string, number, or boolean as a port input. Any node with a "constraints.literal" field outputs { value: <that literal> } at runtime. Give each a unique id:
+  { "id": "name_const", "inputs": [], "outputs": [{"id":"value","type":"string"}], "constraints": {"literal": "code_improve"} }
+  { "id": "key_const",  "inputs": [], "outputs": [{"id":"value","type":"string"}], "constraints": {"literal": "code"} }
+Use this for: graph names in load_graph, key names in pack/pluck, any fixed string that isn't a runtime input.
 
 Return ONLY valid JSON — no markdown fences, no explanation. The root object must be the SerializedGraph.`
 
@@ -170,17 +261,47 @@ async function callLLM(messages: OpenAI.Chat.ChatCompletionMessageParam[]): Prom
   return resp.choices[0].message.content ?? '{}'
 }
 
-export async function plantGraph(task: string, maxPasses = 5): Promise<SerializedGraph> {
+async function buildSystem(): Promise<string> {
   const mcpNodes = await loadMcpCatalog()
   const catalog = [...BUILTIN_CATALOG, ...mcpNodes]
 
   if (mcpNodes.length > 0)
     console.log(`[plant] loaded ${mcpNodes.length} MCP tool(s): ${mcpNodes.map(n => n.id).join(', ')}`)
 
+  const savedGraphs = listGraphs()
+  if (savedGraphs.length > 0)
+    console.log(`[plant] graph library: ${savedGraphs.join(', ')}`)
+
   const catalogText = catalog.map(n =>
     `\n  id: "${n.id}"\n  description: ${n.description}\n  inputs:  ${JSON.stringify(n.inputs)}\n  outputs: ${JSON.stringify(n.outputs)}`
   ).join('\n')
-  const system = SYSTEM_TEMPLATE.replace('CATALOG_PLACEHOLDER', catalogText)
+
+  const librarySection = savedGraphs.length > 0
+    ? `\n\nGraph library — reusable saved graphs (load with load_graph, run with execute_graph):\n${savedGraphs.map(n => `  - "${n}"`).join('\n')}`
+    : ''
+
+  return SYSTEM_TEMPLATE.replace('CATALOG_PLACEHOLDER', catalogText) + librarySection
+}
+
+export async function buildCatalogSection(): Promise<string> {
+  const mcpNodes = await loadMcpCatalog()
+  const catalog = [...BUILTIN_CATALOG, ...mcpNodes]
+  const catalogText = catalog.map(n =>
+    `\n  id: "${n.id}"\n  description: ${n.description}\n  inputs:  ${JSON.stringify(n.inputs)}\n  outputs: ${JSON.stringify(n.outputs)}`
+  ).join('\n')
+  const savedGraphs = listGraphs()
+  const librarySection = savedGraphs.length > 0
+    ? `\n\nGraph library:\n${savedGraphs.map(n => `  - "${n}"`).join('\n')}`
+    : ''
+  return `Available leaf nodes (use these ids exactly):\n${catalogText}${librarySection}`
+}
+
+export async function plantGraphTracked(
+  task: string,
+  maxPasses = 5,
+  systemOverride?: string,
+): Promise<{ graph: SerializedGraph; passes: number }> {
+  const system = systemOverride ?? await buildSystem()
 
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
     { role: 'system', content: system },
@@ -205,7 +326,7 @@ export async function plantGraph(task: string, maxPasses = 5): Promise<Serialize
     const errors = validateGraph(parsed)
     if (errors.length === 0) {
       console.log('✓ valid')
-      return parsed
+      return { graph: parsed, passes: pass }
     }
 
     console.log(`✗ ${errors.length} error(s):`)
@@ -219,4 +340,9 @@ export async function plantGraph(task: string, maxPasses = 5): Promise<Serialize
   }
 
   throw new Error(`Failed to produce a valid graph in ${maxPasses} passes`)
+}
+
+export async function plantGraph(task: string, maxPasses = 5): Promise<SerializedGraph> {
+  const { graph } = await plantGraphTracked(task, maxPasses)
+  return graph
 }

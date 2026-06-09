@@ -1,0 +1,4 @@
+{
+  "problem": "Write a JavaScript function called `add(a, b)` that returns the sum of two numbers.",
+  "system": "You are an expert JavaScript developer. Return only the function, no explanation."
+}

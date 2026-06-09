@@ -1,4 +1,14 @@
 {
-  "problem": "Write a JavaScript function `deepClone(value, seen)` that deep clones a value. Requirements: (1) primitives (string, number, boolean, null, undefined) are returned as-is, (2) Date objects are cloned as new Date instances with the same time, (3) Arrays are cloned recursively element by element, (4) Plain objects are cloned recursively key by key, (5) CRITICAL: circular references must not cause infinite recursion — if the same object reference appears again during traversal, the clone must reference the already-cloned copy instead of re-cloning, (6) Functions are returned as-is (not cloned), (7) Map and Set are NOT supported — throw an Error('unsupported type') if encountered. The `seen` parameter is a Map used to track already-visited objects for circular reference detection — callers may omit it. Return only the function, no explanation.",
-  "system": "You are an expert JavaScript developer. When revising, fix ALL issues raised in the feedback — especially around circular reference handling and the seen map. Return only the function, no explanation or example usage."
+  "problem": "Write a JavaScript function called `chunk(arr, size)` that splits an array into chunks of the given size. The last chunk may be smaller. Requirements: (1) throw Error('invalid size') if size is less than 1 or not an integer, (2) empty array returns [], (3) does not mutate the original array. Return only the function, no explanation.",
+  "system": "You are an expert JavaScript developer. When revising, fix ALL issues raised in the feedback and ensure all tests pass. Return only the function, no explanation or example usage.",
+  "tests": [
+    { "args": [[[1,2,3,4,5], 2]], "expected": [[1,2],[3,4],[5]] },
+    { "args": [[[1,2,3,4,5], 3]], "expected": [[1,2,3],[4,5]] },
+    { "args": [[[1,2,3], 1]],     "expected": [[1],[2],[3]] },
+    { "args": [[[1,2,3], 5]],     "expected": [[1,2,3]] },
+    { "args": [[[], 2]],          "expected": [] },
+    { "args": [[[1,2,3,4], 2]],   "expected": [[1,2],[3,4]] },
+    { "args": [[[1,2,3,4,5], 0]], "expectError": true },
+    { "args": [[[1,2,3,4,5], 1.5]], "expectError": true }
+  ]
 }

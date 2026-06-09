@@ -464,6 +464,31 @@ Multi-iteration path not yet exercised — flatten was too easy.
 - draft_writer outputs prose + code by default; add "Return only the function, no explanation." to system prompt to get raw code
 - Trace captures timing events only, not intermediate port values (feedback text not visible between iterations)
 
+### run_js builtin — ADDED ✓
+
+Executes LLM-generated code against real test cases inside a Node.js `vm` sandbox.
+
+```
+id: run_js
+inputs:  [code: string, tests: object]
+outputs: [results: object, allPassed: boolean, summary: string]
+```
+
+- Strips markdown code fences from `code` before eval
+- Auto-detects function name via regex (handles `function name()` and `const name =`)
+- Each test: `{ args: unknown[], expected: unknown }` — calls `fn(...args)`, compares via `JSON.stringify`
+- `expectError: true` on a test case — passes if the call throws, fails if it doesn't
+- 5s timeout per test via `vm.runInNewContext`
+- `summary` string fed to `quality_judge.testResults` — judge cannot approve code that fails tests
+
+`quality_judge` updated: accepts optional `testResults: string` input. If present, appended to judge prompt with instruction "if all tests pass, set continue=false unless critical issue."
+
+`code_improve_graph.json` updated: `draft_writer → run_js → quality_judge` in subgraph. `tests` threaded from outer `$input` through `while_loop` to subgraph.
+
+**Confirmed runs:**
+- flatten (7 tests): 1 pass — code was correct first try, judge approved citing test results
+- chunk (8 tests incl. 2 expectError): 8 passes — writer kept fumbling the `size < 1 || !Number.isInteger(size)` validation, run_js caught every failure, judge pushed back each time until correct
+
 ### Iteration logging — ADDED ✓
 
 `runWhile` in `lib/execute-engine.ts` now logs each pass with feedback:
@@ -508,6 +533,38 @@ Fallback: `createApp()` (no pool) creates a per-request pool — keeps tests wor
 
 ---
 
+## Graph library — COMPLETE ✓
+
+`lib/graph-store.ts` — `saveGraph(name, graph)`, `loadGraph(name)`, `listGraphs()`
+- Graphs saved to `graphs/{name}.json`
+- Plant lists available graphs at startup: `[plant] graph library: name1, name2`
+- Plant system prompt appends library section + library section appended at end of system prompt
+
+### New builtins (all confirmed working)
+
+| Node | Inputs | Outputs | Purpose |
+|---|---|---|---|
+| `save_graph` | `name, graph` | `name, saved` | Persist graph to `graphs/` |
+| `load_graph` | `name` | `graph, found` | Load graph by name |
+| `pluck` | `object, key` | `value` | Extract field from object (use after execute_graph) |
+| `pack` | `key1/value1..key4/value4` | `object` | Build object from named port values (use to construct execute_graph.inputs) |
+| `literal` | (none) | `value` | Constant value — any node with `constraints.literal` outputs it. No builtin case needed; handled in executor before builtin dispatch. |
+
+### Literal node pattern
+
+```json
+{ "id": "name_const", "inputs": [], "outputs": [{"id":"value","type":"string"}], "constraints": {"literal": "code_improve"} }
+```
+
+Plant now uses literal nodes for hardcoded strings (graph names, pack keys, pluck keys). Added to system prompt with examples.
+
+### Confirmed end-to-end
+
+Planted + executed: `name_const → load_graph → pack(key1_const, key2_const, problem, system) → execute_graph(code_improve) → pluck(key_pluck_const) → $output(code)`
+- Plant produced valid graph on pass 1/5
+- Executor ran literal nodes, loaded code_improve, packed inputs, ran the while loop inside, plucked result
+- `add(a, b)` problem: 1 pass, judge approved
+
 ## Known issues
 - `flaky_op` counter is module-level; resets only on server restart
-- Plant-generated while loops need manual review: 3 recurring bug patterns seen (wrong draft seeding, wrong $output.draft source, missing feedback wiring)
+- ~~Plant-generated while loops need manual review~~ — FIXED. Added concrete wiring example + 3 critical rules to system prompt. Re-plant of same task: pass 1/1 valid, all 3 bugs absent.

@@ -1,11 +1,169 @@
 {
   "graph": "code_improve_graph.json",
   "inputs": {
-    "problem": "Write a JavaScript function `deepClone(value, seen)` that deep clones a value. Requirements: (1) primitives (string, number, boolean, null, undefined) are returned as-is, (2) Date objects are cloned as new Date instances with the same time, (3) Arrays are cloned recursively element by element, (4) Plain objects are cloned recursively key by key, (5) CRITICAL: circular references must not cause infinite recursion — if the same object reference appears again during traversal, the clone must reference the already-cloned copy instead of re-cloning, (6) Functions are returned as-is (not cloned), (7) Map and Set are NOT supported — throw an Error('unsupported type') if encountered. The `seen` parameter is a Map used to track already-visited objects for circular reference detection — callers may omit it. Return only the function, no explanation.",
-    "system": "You are an expert JavaScript developer. When revising, fix ALL issues raised in the feedback — especially around circular reference handling and the seen map. Return only the function, no explanation or example usage."
+    "problem": "Write a JavaScript function called `chunk(arr, size)` that splits an array into chunks of the given size. The last chunk may be smaller. Requirements: (1) throw Error('invalid size') if size is less than 1 or not an integer, (2) empty array returns [], (3) does not mutate the original array. Return only the function, no explanation.",
+    "system": "You are an expert JavaScript developer. When revising, fix ALL issues raised in the feedback and ensure all tests pass. Return only the function, no explanation or example usage.",
+    "tests": [
+      {
+        "args": [
+          [
+            [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            2
+          ]
+        ],
+        "expected": [
+          [
+            1,
+            2
+          ],
+          [
+            3,
+            4
+          ],
+          [
+            5
+          ]
+        ]
+      },
+      {
+        "args": [
+          [
+            [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            3
+          ]
+        ],
+        "expected": [
+          [
+            1,
+            2,
+            3
+          ],
+          [
+            4,
+            5
+          ]
+        ]
+      },
+      {
+        "args": [
+          [
+            [
+              1,
+              2,
+              3
+            ],
+            1
+          ]
+        ],
+        "expected": [
+          [
+            1
+          ],
+          [
+            2
+          ],
+          [
+            3
+          ]
+        ]
+      },
+      {
+        "args": [
+          [
+            [
+              1,
+              2,
+              3
+            ],
+            5
+          ]
+        ],
+        "expected": [
+          [
+            1,
+            2,
+            3
+          ]
+        ]
+      },
+      {
+        "args": [
+          [
+            [],
+            2
+          ]
+        ],
+        "expected": []
+      },
+      {
+        "args": [
+          [
+            [
+              1,
+              2,
+              3,
+              4
+            ],
+            2
+          ]
+        ],
+        "expected": [
+          [
+            1,
+            2
+          ],
+          [
+            3,
+            4
+          ]
+        ]
+      },
+      {
+        "args": [
+          [
+            [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            0
+          ]
+        ],
+        "expectError": true
+      },
+      {
+        "args": [
+          [
+            [
+              1,
+              2,
+              3,
+              4,
+              5
+            ],
+            1.5
+          ]
+        ],
+        "expectError": true
+      }
+    ]
   },
   "outputs": {
-    "code": "```javascript\nfunction deepClone(value, seen = new Map()) {\n    if (value === null || typeof value !== 'object') {\n        return value;\n    }\n\n    if (value instanceof Map || value instanceof Set) {\n        throw new Error('unsupported type');\n    }\n\n    if (value instanceof Date) {\n        return new Date(value.getTime());\n    }\n\n    if (seen.has(value)) {\n        return seen.get(value);\n    }\n\n    if (Array.isArray(value)) {\n        const arrayClone = [];\n        seen.set(value, arrayClone);\n        for (const item of value) {\n            arrayClone.push(deepClone(item, seen));\n        }\n        return arrayClone;\n    }\n\n    if (value instanceof Object) {\n        const objectClone = {};\n        seen.set(value, objectClone);\n        for (const key in value) {\n            if (Object.prototype.hasOwnProperty.call(value, key)) {\n                objectClone[key] = deepClone(value[key], seen);\n            }\n        }\n        return objectClone;\n    }\n\n    throw new Error('unsupported type');\n}\n```"
+    "code": "```javascript\nfunction chunk(arr, size) {\n    if (typeof size !== 'number' || size < 1 || !Number.isInteger(size)) {\n        throw new Error('invalid size');\n    }\n    if (arr.length === 0) {\n        return [];\n    }\n    \n    const result = [];\n    for (let i = 0; i < arr.length; i += size) {\n        result.push(arr.slice(i, i + size));\n    }\n    return result;\n}\n```"
   },
   "events": [
     {
@@ -16,7 +174,7 @@
     {
       "type": "complete",
       "nodeId": "$input",
-      "durationMs": 1.2160000000003492,
+      "durationMs": 1.0959000000002561,
       "depth": 0
     },
     {
@@ -32,7 +190,7 @@
     {
       "type": "complete",
       "nodeId": "$input",
-      "durationMs": 0.055700000000797445,
+      "durationMs": 0.056899999999586726,
       "depth": 1
     },
     {
@@ -43,7 +201,18 @@
     {
       "type": "complete",
       "nodeId": "draft_writer",
-      "durationMs": 4759.170700000002,
+      "durationMs": 4054.9765000000007,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "run_js",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "run_js",
+      "durationMs": 47.41100000000006,
       "depth": 1
     },
     {
@@ -54,7 +223,7 @@
     {
       "type": "complete",
       "nodeId": "quality_judge",
-      "durationMs": 2095.2374999999993,
+      "durationMs": 2035.9570999999996,
       "depth": 1
     },
     {
@@ -65,7 +234,7 @@
     {
       "type": "complete",
       "nodeId": "$output",
-      "durationMs": 0.04610000000320724,
+      "durationMs": 0.09840000000258442,
       "depth": 1
     },
     {
@@ -76,7 +245,7 @@
     {
       "type": "complete",
       "nodeId": "$input",
-      "durationMs": 0.04869999999937136,
+      "durationMs": 0.07129999999961001,
       "depth": 1
     },
     {
@@ -87,7 +256,18 @@
     {
       "type": "complete",
       "nodeId": "draft_writer",
-      "durationMs": 5404.591800000002,
+      "durationMs": 2582.215500000002,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "run_js",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "run_js",
+      "durationMs": 30.048299999998562,
       "depth": 1
     },
     {
@@ -98,7 +278,7 @@
     {
       "type": "complete",
       "nodeId": "quality_judge",
-      "durationMs": 4349.669599999997,
+      "durationMs": 3144.9752000000008,
       "depth": 1
     },
     {
@@ -109,7 +289,7 @@
     {
       "type": "complete",
       "nodeId": "$output",
-      "durationMs": 0.060599999997066334,
+      "durationMs": 0.006600000000617001,
       "depth": 1
     },
     {
@@ -120,7 +300,7 @@
     {
       "type": "complete",
       "nodeId": "$input",
-      "durationMs": 0.035499999998137355,
+      "durationMs": 0.0072000000000116415,
       "depth": 1
     },
     {
@@ -131,7 +311,18 @@
     {
       "type": "complete",
       "nodeId": "draft_writer",
-      "durationMs": 5899.237699999998,
+      "durationMs": 2928.8970999999983,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "run_js",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "run_js",
+      "durationMs": 41.51139999999941,
       "depth": 1
     },
     {
@@ -142,7 +333,7 @@
     {
       "type": "complete",
       "nodeId": "quality_judge",
-      "durationMs": 1790.591800000002,
+      "durationMs": 1790.9161999999997,
       "depth": 1
     },
     {
@@ -153,13 +344,288 @@
     {
       "type": "complete",
       "nodeId": "$output",
-      "durationMs": 0.030600000005506445,
+      "durationMs": 0.006500000003143214,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "$input",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "$input",
+      "durationMs": 0.008699999998498242,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "draft_writer",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "draft_writer",
+      "durationMs": 2313.1236999999965,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "run_js",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "run_js",
+      "durationMs": 28.03399999999965,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "quality_judge",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "quality_judge",
+      "durationMs": 3367.3654000000024,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "$output",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "$output",
+      "durationMs": 0.015500000001338776,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "$input",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "$input",
+      "durationMs": 0.0239000000001397,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "draft_writer",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "draft_writer",
+      "durationMs": 2281.167999999998,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "run_js",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "run_js",
+      "durationMs": 36.677800000004936,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "quality_judge",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "quality_judge",
+      "durationMs": 2147.964500000002,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "$output",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "$output",
+      "durationMs": 0.0063999999983934686,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "$input",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "$input",
+      "durationMs": 0.0078000000066822395,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "draft_writer",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "draft_writer",
+      "durationMs": 2227.9124999999985,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "run_js",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "run_js",
+      "durationMs": 35.1849000000002,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "quality_judge",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "quality_judge",
+      "durationMs": 1567.3893000000025,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "$output",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "$output",
+      "durationMs": 0.02860000000509899,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "$input",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "$input",
+      "durationMs": 0.033400000000256114,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "draft_writer",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "draft_writer",
+      "durationMs": 2590.024000000005,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "run_js",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "run_js",
+      "durationMs": 53.8640000000014,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "quality_judge",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "quality_judge",
+      "durationMs": 1924.053899999999,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "$output",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "$output",
+      "durationMs": 0.01620000000548316,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "$input",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "$input",
+      "durationMs": 0.02140000000508735,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "draft_writer",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "draft_writer",
+      "durationMs": 2670.7517000000007,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "run_js",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "run_js",
+      "durationMs": 29.56069999999454,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "quality_judge",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "quality_judge",
+      "durationMs": 2362.656299999995,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "$output",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "$output",
+      "durationMs": 0.006300000000919681,
       "depth": 1
     },
     {
       "type": "complete",
       "nodeId": "while_loop",
-      "durationMs": 24307.078800000003,
+      "durationMs": 40309.9113,
       "depth": 0
     },
     {
@@ -170,7 +636,7 @@
     {
       "type": "complete",
       "nodeId": "$output",
-      "durationMs": 0.29769999999552965,
+      "durationMs": 0.503499999998894,
       "depth": 0
     }
   ]

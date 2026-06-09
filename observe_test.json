@@ -1,0 +1,48 @@
+{
+  "nodes": [
+    {
+      "id": "$input",
+      "inputs": [],
+      "outputs": [
+        { "id": "topic", "type": "string" }
+      ]
+    },
+    {
+      "id": "draft_writer",
+      "inputs": [
+        { "id": "prompt", "type": "string" }
+      ],
+      "outputs": [
+        { "id": "response", "type": "string" }
+      ]
+    },
+    {
+      "id": "observe",
+      "inputs": [
+        { "id": "trigger", "type": "any", "optional": true }
+      ],
+      "outputs": [
+        { "id": "summary",    "type": "string" },
+        { "id": "nodeCount",  "type": "number" },
+        { "id": "errorCount", "type": "number" },
+        { "id": "events",     "type": "object" }
+      ]
+    },
+    {
+      "id": "$output",
+      "inputs": [
+        { "id": "draft",      "type": "string" },
+        { "id": "trace",      "type": "string" },
+        { "id": "nodeCount",  "type": "number" }
+      ],
+      "outputs": []
+    }
+  ],
+  "edges": [
+    { "from": { "nodeId": "$input",       "portId": "topic"     }, "to": { "nodeId": "draft_writer", "portId": "prompt"   } },
+    { "from": { "nodeId": "draft_writer", "portId": "response"  }, "to": { "nodeId": "observe",      "portId": "trigger"  } },
+    { "from": { "nodeId": "draft_writer", "portId": "response"  }, "to": { "nodeId": "$output",      "portId": "draft"    } },
+    { "from": { "nodeId": "observe",      "portId": "summary"   }, "to": { "nodeId": "$output",      "portId": "trace"    } },
+    { "from": { "nodeId": "observe",      "portId": "nodeCount" }, "to": { "nodeId": "$output",      "portId": "nodeCount"} }
+  ]
+}
