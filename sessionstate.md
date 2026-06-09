@@ -568,3 +568,75 @@ Planted + executed: `name_const → load_graph → pack(key1_const, key2_const, 
 ## Known issues
 - `flaky_op` counter is module-level; resets only on server restart
 - ~~Plant-generated while loops need manual review~~ — FIXED. Added concrete wiring example + 3 critical rules to system prompt. Re-plant of same task: pass 1/1 valid, all 3 bugs absent.
+
+---
+
+## Sprint — 2026-06-07 to 2026-06-09
+
+All of the following confirmed working end-to-end.
+
+### New builtins
+
+| Node | Inputs | Outputs | Notes |
+|---|---|---|---|
+| `combine_results` | `valid: boolean, passes: number` | `combined: string` | Formats plant_with_prompt output for quality_judge |
+| `observe` | `trigger?: any` | `summary, nodeCount, errorCount, events` | Snapshot of execution trace mid-run; reads `localEvents` from executor scope |
+| `plant_with_prompt` | `task: string, systemPrompt: string` | `valid: boolean, passes: number` | Tests a candidate system prompt by compiling a task with it |
+
+### `builtin` field dispatch
+
+Plant sometimes renames builtin nodes (e.g. `pack` → `params_pack`, `observe` → `observation`). Fix: if `node.builtin` is set, executor uses that as the dispatch key instead of `node.id`. System prompt instructs Plant to set `"builtin": "<catalog-id>"` when renaming.
+
+### Observe node
+
+`observe` reads `localEvents` accumulated by the executor in the current subgraph scope. Optional `trigger: any` port controls execution ordering — wire any upstream output to force `observe` to run after it. Events from nested subgraphs bubble up via `parentEvents` parameter threaded through `runForEach` / `runWhile` / `runRetry`.
+
+### Router node (execute-engine) — COMPLETE ✓
+
+`node.router: true` + `node.branches: Record<string, SerializedGraph>`. Required input `condition: string` selects branch. Falls back to `"default"` key. All other inputs forwarded to selected branch's `$input`. `runRoute()` in `lib/execute-engine.ts`. Uses `⑂` in console.
+
+Note: this is separate from the old `core/executor.ts` router — the execute-engine pipeline has its own parallel implementation.
+
+### Agent node (execute-engine) — COMPLETE ✓
+
+`node.agent: true`, optional `node.model` (default `gpt-4o-mini`), `constraints.maxTurns` (default 10). Required input `task: string`, optional `context: string`. Outputs `result: string` + `steps: object` (full tool call log). LLM function-calling loop until no tool_calls remain. Uses `◈` in console.
+
+**Agent MCP tools** — `pool.listTools()` added to `McpPool`. At call time, `runAgent()` fetches all live MCP tool definitions and merges them with `AGENT_TOOLS` (builtins). Dispatch: if `toolName.includes('__')` → `pool.callTool()`; otherwise → `runBuiltin()`.
+
+**Confirmed**: agent given task "Search GitHub for repos owned by OnliestWizard" → autonomously called `github__search_repositories` → summarized results. 2 turns, 0 graph wiring needed.
+
+### GitHub MCP — WIRED ✓
+
+`@modelcontextprotocol/server-github` added to `mcp.json`. `mcp-pool.ts` now passes `process.env` to all child processes — PAT inherited automatically from `.env.local`.
+
+```
+GITHUB_TOKEN=ghp_your_token   # add to .env.local (already gitignored)
+```
+
+40 tools live: 14 filesystem + 26 GitHub (`search_repositories`, `get_file_contents`, `create_issue`, `create_pull_request`, `list_commits`, `search_code`, `push_files`, etc.).
+
+Note: `@modelcontextprotocol/server-github@2025.4.8` shows deprecation warning. Still works. Future swap: change `mcp.json` arg to `@github/github-mcp-server`.
+
+**Confirmed**: `github_repos.json` graph (params_const → github__search_repositories → draft_writer → $output.summary) ran clean against real account. Found 2 repos, draft_writer summarized both.
+
+### Plant self-improvement loop — WORKING ✓
+
+`plant_improve_graph.json` — while loop: `draft_writer → plant_with_prompt → combine_results → quality_judge → loop`
+
+**Critical fix**: `plant_with_prompt` must append `buildCatalogSection()` to the candidate prompt, otherwise Plant has no node catalog and fails every time. Fixed via `buildCatalogSection()` export from `lib/plant.ts`.
+
+**Result**: 4 of 10 iterations achieved `valid=true, passes=1` (1-pass compile). Judge feedback carries to next iteration via `$output.feedback → $input.feedback → draft_writer.feedback`. Loop hits `maxIterations=10` — judge never fully approves, but prompt measurably improves.
+
+### `buildCatalogSection()` export
+
+`lib/plant.ts` exports `buildCatalogSection()` — returns the node catalog text without the full system template wrapper. Used by `plant_with_prompt` to append catalog to candidate prompts so they have tool knowledge.
+
+### Substrate roadmap (curated)
+
+**Worth building next:**
+- **Graph versioning + rollback** — timestamp/hash in `save_graph`; rollback free once versioned
+- **Capability permissions** — `node.allowedTools?: string[]` filter in `executeSubgraph`; important before multi-user exposure
+- **Execution replay** — trace already emitted; replay = synthetic `onEvent` playback
+- **Graph lineage** — thread `parentGraphId` when `execute_graph` or `plant` spawns a child
+
+**Skip for now:** graph diffing (JSON diff is 80%), graph benchmarking (manual), graph provenance (derivable from git+trace), execution snapshots (`observe` covers this), agent sandboxing (not needed while graphs are internal).
