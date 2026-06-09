@@ -1,0 +1,177 @@
+{
+  "graph": "code_improve_graph.json",
+  "inputs": {
+    "problem": "Write a JavaScript function `deepClone(value, seen)` that deep clones a value. Requirements: (1) primitives (string, number, boolean, null, undefined) are returned as-is, (2) Date objects are cloned as new Date instances with the same time, (3) Arrays are cloned recursively element by element, (4) Plain objects are cloned recursively key by key, (5) CRITICAL: circular references must not cause infinite recursion — if the same object reference appears again during traversal, the clone must reference the already-cloned copy instead of re-cloning, (6) Functions are returned as-is (not cloned), (7) Map and Set are NOT supported — throw an Error('unsupported type') if encountered. The `seen` parameter is a Map used to track already-visited objects for circular reference detection — callers may omit it. Return only the function, no explanation.",
+    "system": "You are an expert JavaScript developer. When revising, fix ALL issues raised in the feedback — especially around circular reference handling and the seen map. Return only the function, no explanation or example usage."
+  },
+  "outputs": {
+    "code": "```javascript\nfunction deepClone(value, seen = new Map()) {\n    if (value === null || typeof value !== 'object') {\n        return value;\n    }\n\n    if (value instanceof Map || value instanceof Set) {\n        throw new Error('unsupported type');\n    }\n\n    if (value instanceof Date) {\n        return new Date(value.getTime());\n    }\n\n    if (seen.has(value)) {\n        return seen.get(value);\n    }\n\n    if (Array.isArray(value)) {\n        const arrayClone = [];\n        seen.set(value, arrayClone);\n        for (const item of value) {\n            arrayClone.push(deepClone(item, seen));\n        }\n        return arrayClone;\n    }\n\n    if (value instanceof Object) {\n        const objectClone = {};\n        seen.set(value, objectClone);\n        for (const key in value) {\n            if (Object.prototype.hasOwnProperty.call(value, key)) {\n                objectClone[key] = deepClone(value[key], seen);\n            }\n        }\n        return objectClone;\n    }\n\n    throw new Error('unsupported type');\n}\n```"
+  },
+  "events": [
+    {
+      "type": "start",
+      "nodeId": "$input",
+      "depth": 0
+    },
+    {
+      "type": "complete",
+      "nodeId": "$input",
+      "durationMs": 1.2160000000003492,
+      "depth": 0
+    },
+    {
+      "type": "start",
+      "nodeId": "while_loop",
+      "depth": 0
+    },
+    {
+      "type": "start",
+      "nodeId": "$input",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "$input",
+      "durationMs": 0.055700000000797445,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "draft_writer",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "draft_writer",
+      "durationMs": 4759.170700000002,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "quality_judge",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "quality_judge",
+      "durationMs": 2095.2374999999993,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "$output",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "$output",
+      "durationMs": 0.04610000000320724,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "$input",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "$input",
+      "durationMs": 0.04869999999937136,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "draft_writer",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "draft_writer",
+      "durationMs": 5404.591800000002,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "quality_judge",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "quality_judge",
+      "durationMs": 4349.669599999997,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "$output",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "$output",
+      "durationMs": 0.060599999997066334,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "$input",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "$input",
+      "durationMs": 0.035499999998137355,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "draft_writer",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "draft_writer",
+      "durationMs": 5899.237699999998,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "quality_judge",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "quality_judge",
+      "durationMs": 1790.591800000002,
+      "depth": 1
+    },
+    {
+      "type": "start",
+      "nodeId": "$output",
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "$output",
+      "durationMs": 0.030600000005506445,
+      "depth": 1
+    },
+    {
+      "type": "complete",
+      "nodeId": "while_loop",
+      "durationMs": 24307.078800000003,
+      "depth": 0
+    },
+    {
+      "type": "start",
+      "nodeId": "$output",
+      "depth": 0
+    },
+    {
+      "type": "complete",
+      "nodeId": "$output",
+      "durationMs": 0.29769999999552965,
+      "depth": 0
+    }
+  ]
+}

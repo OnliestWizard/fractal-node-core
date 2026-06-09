@@ -436,12 +436,55 @@ $input(task, inputs?) → plant → execute_graph → $output(outputs)
 ```
 At runtime: executor pauses, GPT-4o designs a new graph from `task`, executor resumes and runs that graph. Graphs that grow graphs.
 
-**Self-improvement loop** — plant this prompt with `run_plant.ts`:
+**Self-improvement loop** — `code_improve_graph.json` — CONFIRMED WORKING ✓
+
 ```
-Given a programming problem in 'problem', write code using draft_writer, have quality_judge
-evaluate it, loop until judge approves (continue=false), return final code.
+npx tsx run_execute.ts --graph code_improve_graph.json --inputs-file code_improve_inputs.json --out code_improve_trace.json
 ```
-Test inputs: `code_improve_inputs.json` (flatten function problem).
+
+Graph: `$input(problem, system) → while_loop → $output(code)`
+
+While subgraph per iteration:
+```
+$input(problem, system, draft?, feedback?)
+  → draft_writer(prompt=problem, system, draft?, feedback?)
+  → quality_judge(prompt=problem, draft=response)
+  → $output(draft=writer.response, feedback=judge.feedback, continue)
+```
+
+Plant generated this on pass 5/5. Three bugs were hand-fixed post-plant:
+1. Outer graph had wrong edge `$input.system → while_loop.draft` (system seeded as draft)
+2. Subgraph wired `quality_judge.response → $output.draft` instead of `draft_writer.response`
+3. Feedback port never wired — judge critique never reached writer next iteration
+
+Confirmed run: flatten problem, 1 iteration (gpt-4o-mini wrote it correctly first try, gpt-4o approved).
+Multi-iteration path not yet exercised — flatten was too easy.
+
+**Notes:**
+- draft_writer outputs prose + code by default; add "Return only the function, no explanation." to system prompt to get raw code
+- Trace captures timing events only, not intermediate port values (feedback text not visible between iterations)
+
+### Iteration logging — ADDED ✓
+
+`runWhile` in `lib/execute-engine.ts` now logs each pass with feedback:
+```
+  ── pass 1
+    ✓ draft_writer
+    ✓ quality_judge
+  ── pass 1 done  continue=true  feedback: <first 200 chars of judge critique>
+  ── pass 2
+    ...
+  ── pass 2 done  continue=false
+```
+
+### Multi-iteration confirmed working ✓
+
+`deepClone` problem (3 passes):
+- Pass 1: judge flagged missing Map/Set check
+- Pass 2: judge flagged Map/Set check placed after generic object check — needs to be first
+- Pass 3: approved — Map/Set check moved before Date/Array/Object checks, `new Date(value.getTime())` used
+
+Confirmed: feedback flows correctly from judge → next iteration's draft_writer.
 
 ### Server endpoints (added)
 
@@ -467,3 +510,4 @@ Fallback: `createApp()` (no pool) creates a per-request pool — keeps tests wor
 
 ## Known issues
 - `flaky_op` counter is module-level; resets only on server restart
+- Plant-generated while loops need manual review: 3 recurring bug patterns seen (wrong draft seeding, wrong $output.draft source, missing feedback wiring)

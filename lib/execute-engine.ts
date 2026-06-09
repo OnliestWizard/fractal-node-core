@@ -158,12 +158,21 @@ async function runWhile(
   depth: number,
 ): Promise<Record<string, unknown>> {
   const maxIter = node.constraints?.maxIterations ?? 10
+  const indent = '  '.repeat(depth)
   let current = { ...inputs }
   let outputs: Record<string, unknown> = {}
 
   for (let i = 0; i < maxIter; i++) {
+    console.log(`${indent}  ── pass ${i + 1}`)
     outputs = await executeSubgraph(node.subgraph!, current, pool, onEvent, depth + 1)
-    if (!outputs.continue) break
+    const continuing = !!outputs.continue
+    if (outputs.feedback) {
+      const fb = String(outputs.feedback).replace(/\n/g, ' ').slice(0, 200)
+      console.log(`${indent}  ── pass ${i + 1} done  continue=${continuing}  feedback: ${fb}`)
+    } else {
+      console.log(`${indent}  ── pass ${i + 1} done  continue=${continuing}`)
+    }
+    if (!continuing) break
     current = { ...inputs }
     for (const [k, v] of Object.entries(outputs)) {
       if (k !== 'continue') current[k] = v
