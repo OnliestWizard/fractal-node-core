@@ -1,5 +1,31 @@
 # Session State — fractal-node-core
 
+## Code service + the ladder (2026-06-10, last entries of the day)
+
+- **demo_code_service.ts ✓ first try**: spec-to-tested-code service. Issue #5
+  (parseDuration spec + 7 test cases incl. expectError) → system reads spec
+  off the issue → plants `code_smith` pass 1/5 → delivers 7/7 passing code,
+  committed planted/parse-duration.js, evidence commented back.
+  **Engine path proven**: while-loop skill (code_improve) dispatched through
+  skills-as-nodes — nested ⬡/↻ execution clean at gate time AND run time.
+  code_smith's contract is the strongest yet (allPassed equals true — the
+  gate refuses a code_smith that can't deliver working code). Library = 7
+  skills across three generations of composition (code_improve day-1 →
+  playground_writer → code_smith).
+- **probability005.md**: "The Ladder" — graphs→agents→apps→products as
+  relationships (time/parties/money) on the SAME versioned artifact, not
+  rewrites. Org chart compiles; world-as-database reconciliation memory
+  (playground repo IS the agent's memory); deploy gates = blue/green for
+  behavior; receipts = marketplace quality signal. Strains: LLM determinism
+  leak, ~50-skill prompt ceiling → retrieval, rung costs are ops costs.
+- **Direction settled in discussion**: ship first (flip public — checklist
+  done), then expectation ops (maxLength/lineCount; prerequisite for seeded
+  contracts), then first rung: triage router + `inbox_sweep` skill + pulse
+  in server.ts (automate against OWNER's issues only; strangers wait for
+  run_js hardening + cost caps). Seeding (`library_gardener` + seeds.json +
+  pruning planted_child) comes after shipping; Plant authoring its own
+  GraphTestCase JSON (judge-reviewed) is the self-seeding frontier.
+
 ## History rewritten (2026-06-10, last act): photos purged ✓
 
 `git filter-repo` removed the two personal jpgs from ALL history (verified
