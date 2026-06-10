@@ -9,13 +9,40 @@ export interface SerializedNode extends NodeContract {
   builtin?: string
 }
 
+// Bumped only on breaking changes to the graph JSON shape; saveGraph stamps
+// it so persisted graphs can be migrated once the spec evolves.
+export const SPEC_VERSION = '1'
+
+/** One assertion against the outputs of a test execution. `port` is an output
+ *  port name, optionally dot-pathed into the value (JSON-string values are
+ *  parsed during the walk, so "result.content.path" reaches into MCP results). */
+export interface GraphExpectation {
+  port: string
+  equals?: unknown
+  contains?: string
+  exists?: boolean
+}
+
+/** A contract test carried by the graph itself. save_graph runs all cases
+ *  before versioning and refuses the save if any fail. */
+export interface GraphTestCase {
+  name?: string
+  inputs: Record<string, unknown>
+  expect?: GraphExpectation[]
+  /** Pass if the graph throws; fail if it succeeds. */
+  expectError?: boolean
+}
+
 export interface SerializedGraph {
+  specVersion?: string
   // Lineage — assigned by the executor on first run; parentGraphId is set when
   // a graph is spawned by a `plant` or `execute_graph` node inside another graph
   id?: string
   parentGraphId?: string
   nodes: SerializedNode[]
   edges: Edge[]
+  /** Contract tests — see GraphTestCase. Run by save_graph and test_graph. */
+  tests?: GraphTestCase[]
 }
 
 // Maps node IDs to their leaf implementations.

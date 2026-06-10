@@ -1,7 +1,7 @@
 import { existsSync, mkdirSync, readdirSync, readFileSync, writeFileSync } from 'fs'
 import { join } from 'path'
 import { createHash } from 'crypto'
-import type { SerializedGraph } from '../core/serializer'
+import { SPEC_VERSION, type SerializedGraph } from '../core/serializer'
 
 // Overridable so tests can point the store at a temp directory
 const graphsDir = () => process.env.FRACTAL_GRAPHS_DIR ?? join(process.cwd(), 'graphs')
@@ -23,6 +23,7 @@ function ensureDir(dir: string) {
 // identical to the latest version). Returns the version id.
 export function saveGraph(name: string, graph: SerializedGraph): string {
   ensureDir(graphsDir())
+  graph.specVersion ??= SPEC_VERSION
   const json = JSON.stringify(graph, null, 2)
   writeFileSync(join(graphsDir(), `${name}.json`), json)
 

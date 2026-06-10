@@ -106,9 +106,15 @@ const BUILTIN_CATALOG = [
   },
   {
     id: 'save_graph',
-    description: 'Save a graph to the graph library by name. Use after plant or after a successful execution to persist a graph for reuse. Name must be alphanumeric with underscores/hyphens. Every save is versioned automatically; returns the version id.',
-    inputs:  [{ id: 'name', type: 'string' }, { id: 'graph', type: 'object' }],
-    outputs: [{ id: 'name', type: 'string' }, { id: 'saved', type: 'boolean' }, { id: 'version', type: 'string' }],
+    description: 'Save a graph to the graph library by name. Use after plant or after a successful execution to persist a graph for reuse. Name must be alphanumeric with underscores/hyphens. Every save is versioned automatically; returns the version id. If the graph carries contract tests (a top-level "tests" array), they run first and a failing graph is REFUSED a version; pass skipTests=true to bypass. The tested output reports how many cases ran.',
+    inputs:  [{ id: 'name', type: 'string' }, { id: 'graph', type: 'object' }, { id: 'skipTests', type: 'boolean', optional: true }],
+    outputs: [{ id: 'name', type: 'string' }, { id: 'saved', type: 'boolean' }, { id: 'version', type: 'string' }, { id: 'tested', type: 'number' }],
+  },
+  {
+    id: 'test_graph',
+    description: 'Run a graph\'s own contract tests (its top-level "tests" array) without saving. Each test case is { name?, inputs, expect?: [{ port, equals?|contains?|exists? }], expectError? } — the graph executes with the case inputs and expectations are checked against its outputs (port accepts dot-paths into object or JSON-string values, e.g. "result.content.path"). Returns passed, a summary string, and per-case results.',
+    inputs:  [{ id: 'graph', type: 'object' }],
+    outputs: [{ id: 'passed', type: 'boolean' }, { id: 'summary', type: 'string' }, { id: 'results', type: 'object' }],
   },
   {
     id: 'load_graph',

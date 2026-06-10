@@ -18,6 +18,7 @@ import type { Edge } from '../core/types'
 import { McpPool } from './mcp-pool'
 import { plantGraph, plantGraphTracked, buildCatalogSection } from './plant'
 import { saveGraph, loadGraph, listVersions, rollbackGraph } from './graph-store'
+import { checkExpectation, buildReport, type GraphTestReport, type GraphTestResult } from './graph-tests'
 
 export type NodeEvent = (
   | { type: 'start';    nodeId: string; depth: number }
@@ -225,11 +226,8 @@ async function runBuiltin(nodeId: string, inputs: Record<string, unknown>): Prom
       return { combined: `valid=${valid}, passes=${passes}` }
     }
 
-    case 'save_graph': {
-      const name = String(inputs.name ?? '').replace(/[^a-zA-Z0-9_-]/g, '_')
-      const version = saveGraph(name, inputs.graph as SerializedGraph)
-      return { name, saved: true, version }
-    }
+    // save_graph is dispatched in executeSubgraph, not here — running a
+    // graph's contract tests before versioning needs the MCP pool.
 
     case 'load_graph': {
       const name = String(inputs.name ?? '')
@@ -691,6 +689,28 @@ export async function executeSubgraph(
         const result = await executeSubgraph(subGraph, subInputs, pool, onEvent, depth + 1, false, undefined, childPerms)
         outputs = { outputs: result }
         console.log(`${indent}  ✓ ${nodeId}`)
+      } else if (dispatchId === 'save_graph') {
+        assertToolAllowed('save_graph', perms)
+        const name = String(inputs.name ?? '').replace(/[^a-zA-Z0-9_-]/g, '_')
+        const toSave = inputs.graph as SerializedGraph
+        const skipTests = inputs.skipTests === true || inputs.skipTests === 'true'
+        let tested = 0
+        if (toSave?.tests?.length && !skipTests) {
+          console.log(`${indent}  ⊨ ${nodeId} — running ${toSave.tests.length} contract test(s) before versioning`)
+          const report = await runGraphTests(toSave, pool, depth + 1, childPerms)
+          tested = report.total
+          if (!report.passed) throw new Error(`graph tests failed — version refused: ${report.summary}`)
+        }
+        const version = saveGraph(name, toSave)
+        outputs = { name, saved: true, version, tested }
+        console.log(`${indent}  ✓ ${nodeId}`)
+      } else if (dispatchId === 'test_graph') {
+        assertToolAllowed('test_graph', perms)
+        const toTest = inputs.graph as SerializedGraph
+        console.log(`${indent}  ⊨ ${nodeId} — ${toTest?.tests?.length ?? 0} contract test case(s)`)
+        const report = await runGraphTests(toTest, pool, depth + 1, childPerms)
+        outputs = { passed: report.passed, summary: report.summary, results: report.results }
+        console.log(`${indent}  ✓ ${nodeId} — ${report.summary}`)
       } else if (dispatchId.includes('__')) {
         assertToolAllowed(dispatchId, perms)
         const sep = dispatchId.indexOf('__')
@@ -721,4 +741,42 @@ export async function executeSubgraph(
   }
 
   return finalOutputs
+}
+
+// ── Graph contract tests ──────────────────────────────────────────────────────
+
+// Runs the graph's own test suite (graph.tests). Each case executes a deep
+// copy of the graph with throwOnError so node failures become test failures
+// (or passes, for expectError cases). Inherited allowedTools apply to test
+// runs — a graph can't pass its tests by calling tools its caller blocked.
+// A graph with no tests passes vacuously (total 0).
+export async function runGraphTests(
+  graph: SerializedGraph,
+  pool: McpPool,
+  depth = 0,
+  allowedTools?: string[] | string[][],
+): Promise<GraphTestReport> {
+  const cases = graph?.tests ?? []
+  const results: GraphTestResult[] = []
+  const indent = '  '.repeat(depth)
+
+  for (let i = 0; i < cases.length; i++) {
+    const c = cases[i]
+    const name = c.name ?? `case ${i + 1}`
+    const t0 = performance.now()
+    const failures: string[] = []
+    try {
+      const copy: SerializedGraph = JSON.parse(JSON.stringify(graph))
+      const outputs = await executeSubgraph(copy, c.inputs ?? {}, pool, undefined, depth, true, undefined, allowedTools)
+      if (c.expectError) failures.push('expected an error but the graph succeeded')
+      else for (const exp of c.expect ?? []) failures.push(...checkExpectation(exp, outputs))
+    } catch (err) {
+      if (!c.expectError) failures.push(`graph threw: ${String(err)}`)
+    }
+    const passed = failures.length === 0
+    console.log(`${indent}  ${passed ? '✓' : '✗'} test "${name}"${passed ? '' : ` — ${failures.join('; ')}`}`)
+    results.push({ name, passed, failures, durationMs: performance.now() - t0 })
+  }
+
+  return buildReport(results)
 }

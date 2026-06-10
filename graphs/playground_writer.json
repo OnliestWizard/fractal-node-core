@@ -355,5 +355,23 @@
       }
     }
   ],
-  "id": "g_7720cb4b"
+  "id": "g_7720cb4b",
+  "tests": [
+    {
+      "name": "writes to the requested path",
+      "inputs": {
+        "path": "planted/contract-probe.md",
+        "content": "contract probe 2026-06-10T11:15:39.855Z\n",
+        "message": "graph CI: contract probe",
+        "branch": "main"
+      },
+      "expect": [
+        {
+          "port": "result",
+          "contains": "planted/contract-probe.md"
+        }
+      ]
+    }
+  ],
+  "specVersion": "1"
 }

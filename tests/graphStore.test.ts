@@ -10,6 +10,9 @@ const graph = (tag: string): SerializedGraph => ({
   edges: [],
 })
 
+// What a graph looks like after passing through saveGraph (specVersion stamped)
+const stored = (tag: string): SerializedGraph => ({ ...graph(tag), specVersion: '1' })
+
 // Date.now() is the version timestamp — separate consecutive saves
 const tick = () => new Promise(r => setTimeout(r, 10))
 
@@ -31,7 +34,7 @@ describe('save / load', () => {
     expect(version).toMatch(/^\d+_[0-9a-f]{8}$/)
     const { graph: loaded, found } = loadGraph('demo')
     expect(found).toBe(true)
-    expect(loaded).toEqual(graph('v1'))
+    expect(loaded).toEqual(stored('v1'))
   })
 
   it('returns found=false for unknown names', () => {
@@ -66,8 +69,8 @@ describe('version history', () => {
     await tick()
     saveGraph('demo', graph('v2'))
 
-    expect(loadGraph('demo', v1).graph).toEqual(graph('v1'))
-    expect(loadGraph('demo', v1.split('_')[1]).graph).toEqual(graph('v1'))
+    expect(loadGraph('demo', v1).graph).toEqual(stored('v1'))
+    expect(loadGraph('demo', v1.split('_')[1]).graph).toEqual(stored('v1'))
     expect(loadGraph('demo', 'bogus')).toEqual({ graph: null, found: false })
   })
 })
@@ -81,8 +84,8 @@ describe('rollback', () => {
 
     const { graph: restored, restored: ok } = rollbackGraph('demo')
     expect(ok).toBe(true)
-    expect(restored).toEqual(graph('v1'))
-    expect(loadGraph('demo').graph).toEqual(graph('v1'))
+    expect(restored).toEqual(stored('v1'))
+    expect(loadGraph('demo').graph).toEqual(stored('v1'))
     expect(listVersions('demo').length).toBe(3) // v1, v2, restore-of-v1
   })
 
@@ -96,7 +99,7 @@ describe('rollback', () => {
 
     const result = rollbackGraph('demo', v1)
     expect(result.restored).toBe(true)
-    expect(loadGraph('demo').graph).toEqual(graph('v1'))
+    expect(loadGraph('demo').graph).toEqual(stored('v1'))
   })
 
   it('returns restored=false when there is nothing to roll back to', () => {

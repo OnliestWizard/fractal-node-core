@@ -1,5 +1,42 @@
 # Session State — fractal-node-core
 
+## Graph CI — contract tests gate versioning ✓ (2026-06-10, after the demo)
+
+probability003.md written (the evolution thesis: "every skill has a contract")
+and the first piece built + live-confirmed. 221 tests (20 files), typecheck clean.
+
+- **Spec** (`core/serializer.ts`): `SerializedGraph.tests?: GraphTestCase[]`
+  — `{ name?, inputs, expect?: [{ port, equals?|contains?|exists? }], expectError? }`.
+  `port` takes dot-paths; JSON-string values are parsed mid-walk so
+  `result.content.path` reaches into MCP results. Also `specVersion?: string`
+  + `SPEC_VERSION = '1'`, stamped by saveGraph (probability002's cheap insurance).
+- **Runner** (`runGraphTests` in `lib/execute-engine.ts` — lives there to avoid
+  an import cycle; pure assertion helpers + report types in `lib/graph-tests.ts`):
+  executes a deep copy per case with throwOnError; expectError inverts; inherited
+  allowedTools apply to test runs; no tests = vacuous pass (total 0).
+- **The gate**: `save_graph` moved out of runBuiltin into an executeSubgraph
+  special case (needs the pool). If the graph carries tests, they run before
+  versioning — failure throws `version refused` (normal error isolation), no
+  file written, no version recorded. Optional `skipTests` port bypasses
+  (must be WIRED — caller inputs alone don't reach it). New `tested` output.
+- **New builtin `test_graph`**: graph in → `passed, summary, results` without
+  saving. Both in Plant's catalog with the test-case format documented.
+- **Live-confirmed against Plant_Playground**: contract test attached to
+  `playground_writer` ("writes to the requested path"), good save → test ran
+  (wrote planted/contract-probe.md), version recorded tested=1. Sabotaged copy
+  (hardcoded README.md path, same edit as the demo) → save REFUSED, 0 new
+  versions, library copy clean. The demo's beat-4 damage is now *preventable*.
+- **Sharp edge to remember**: contract tests on side-effectful graphs RUN the
+  side effects — the sabotaged graph's test run itself clobbered README.md
+  (restored via API after). Tests should target probe paths; sandboxes earn
+  their keep here.
+- `tests/graphTests.test.ts` (22 tests): path walking, expectations, runner
+  semantics, gate refusal/bypass/no-tests, specVersion stamp, test_graph,
+  allowedTools inheritance. graphStore tests updated for the specVersion stamp.
+- **Next**: upgrade demo_real_stakes.ts beat 4 (gate refuses the sabotage,
+  then skipTests force-save keeps the damage/rollback/replay beats); then the
+  compounding chain demo (task B composes tested skill A, lineage across).
+
 ## Post-crash session (2026-06-10): real PATs live, work committed ✓
 
 Laptop crashed mid-session; recovery + token swap completed:
