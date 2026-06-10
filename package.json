@@ -2,6 +2,7 @@
   "name": "fractal-node-core",
   "version": "0.1.0",
   "description": "Execution-first, language-agnostic logic nodes with fractal subgraph composition",
+  "license": "MIT",
   "scripts": {
     "demo": "tsx run.ts",
     "server": "tsx server.ts",

@@ -2,9 +2,11 @@
 
 ## Go-public prep: README + config + sweep ✓ (2026-06-10, evening)
 
-Items 2/3/4 of the go-public list done (LICENSE + history scan still pending —
-NOTE: two personal photos exist in git HISTORY via commit 8c83c21; removing
-them needs a history rewrite, decide before flipping visibility):
+Items 1–4 of the go-public list done (MIT LICENSE added + license field in
+package.json). ONLY history scan remains — NOTE: two personal photos and the
+Gemini/Gpt/Hmmmm notes exist in git HISTORY via earlier commits (e.g.
+8c83c21); removing them needs a history rewrite + force-push, decide BEFORE
+flipping visibility:
 
 - **Root sweep**: example graphs/inputs → `examples/` (tracked, git mv);
   photos, Gemini.md/Gpt.md/Hmmmm.md, code_improve_trace.json,
