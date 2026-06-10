@@ -23,3 +23,7 @@ playground_file_inputs.json
 playground_file_trace.json
 demo_bad_trace.json
 demo_chain_graphB.json
+scratch/
+*.jpg
+.fractal_memory.json
+code_improve_trace.json

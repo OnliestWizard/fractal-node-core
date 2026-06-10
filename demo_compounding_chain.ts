@@ -17,6 +17,13 @@ import { plantGraph } from './lib/plant'
 import { listGraphs } from './lib/graph-store'
 import type { SerializedGraph } from './core/serializer'
 
+// Your sandbox repo — see .env.example. The publish step writes here.
+const OWNER = process.env.PLAYGROUND_OWNER ?? ''
+const REPO = process.env.PLAYGROUND_REPO ?? ''
+if (!OWNER || !REPO) {
+  console.error('Set PLAYGROUND_OWNER and PLAYGROUND_REPO in .env.local (a sandbox repo you own).')
+  process.exit(1)
+}
 const SKILL_NAME = 'haiku_writer'
 
 function beat(n: number, title: string) {
@@ -78,7 +85,7 @@ async function main() {
 
   beat(3, 'COMPOSE — task B never mentions the library')
   const taskB =
-    'Write a haiku about recursion and publish it to the Plant_Playground GitHub repository ' +
+    `Write a haiku about recursion and publish it to the ${REPO} GitHub repository ` +
     "as the file 'planted/recursion-haiku.md' with commit message 'a planted haiku' on branch 'main'. " +
     'Output the publish result as \'result\'.'
   console.log(`  task: ${taskB}`)
@@ -105,7 +112,7 @@ async function main() {
   let published = false
   try {
     const raw = await pool.callTool('github', 'get_file_contents', {
-      owner: 'OnliestWizard', repo: 'Plant_Playground', path: 'planted/recursion-haiku.md',
+      owner: OWNER, repo: REPO, path: 'planted/recursion-haiku.md',
     })
     const file = JSON.parse(String(raw))
     published = Boolean(file.content)

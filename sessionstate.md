@@ -1,5 +1,30 @@
 # Session State — fractal-node-core
 
+## Go-public prep: README + config + sweep ✓ (2026-06-10, evening)
+
+Items 2/3/4 of the go-public list done (LICENSE + history scan still pending —
+NOTE: two personal photos exist in git HISTORY via commit 8c83c21; removing
+them needs a history rewrite, decide before flipping visibility):
+
+- **Root sweep**: example graphs/inputs → `examples/` (tracked, git mv);
+  photos, Gemini.md/Gpt.md/Hmmmm.md, code_improve_trace.json,
+  .fractal_memory.json → untracked, preserved locally in `scratch/`
+  (gitignored). Root is now ~20 purposeful files.
+- **Config pass**: mcp-pool now expands `${VAR}` in server args too (not just
+  env); mcp.json filesystem root is `${FRACTAL_FS_ROOT}`; both demos take
+  PLAYGROUND_OWNER/PLAYGROUND_REPO from env with a clear error if unset;
+  `.env.example` (tracked) documents every var incl. the two-PAT design.
+  User's .env.local extended with the three new vars; expansion live-probed
+  (14 filesystem tools, transient first-connect timeout was npx cold start).
+- **README rewritten**: leads with "autonomy with receipts" + the two
+  one-command demos; receipts table; quickstart; architecture flow; emitters
+  demoted to a section; honest-status section (run_js NOT a security
+  boundary, OpenAI-only Plant, specVersion). Old README sold the emitter
+  thesis and claimed the server was "next" — it wasn't just stale, it
+  misdirected.
+
+227 tests + typecheck green after changes.
+
 ## THE COMPOUNDING CHAIN ✓ + skills are nodes (2026-06-10, post-nap session)
 
 The probability003 milestone ran end-to-end: `demo_compounding_chain.ts`

@@ -22,11 +22,13 @@ export class McpPool {
     }
 
     for (const server of config.servers) {
-      // server.env values may reference host env vars as ${NAME} so mcp.json never holds secrets
+      // server.env values and args may reference host env vars as ${NAME} so
+      // mcp.json never holds secrets or machine-specific paths
       const expand = (v: string) => v.replace(/\$\{(\w+)\}/g, (_, name) => process.env[name] ?? '')
       const serverEnv = Object.fromEntries(Object.entries(server.env ?? {}).map(([k, v]) => [k, expand(v)]))
       const env = { ...(process.env as Record<string, string>), ...serverEnv }
-      const transport = new StdioClientTransport({ command: server.command, args: server.args ?? [], env })
+      const args = (server.args ?? []).map(expand)
+      const transport = new StdioClientTransport({ command: server.command, args, env })
       const client = new Client({ name: 'fractal-execute', version: '0.1.0' })
       try {
         await client.connect(transport, { timeout: 30000 })

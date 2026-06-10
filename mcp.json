@@ -4,7 +4,7 @@
       "name": "filesystem",
       "transport": "stdio",
       "command": "npx",
-      "args": ["-y", "@modelcontextprotocol/server-filesystem", "C:/Users/Kadie/Documents"]
+      "args": ["-y", "@modelcontextprotocol/server-filesystem", "${FRACTAL_FS_ROOT}"]
     },
     {
       "name": "github",

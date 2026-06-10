@@ -20,8 +20,15 @@ import { replayTrace } from './lib/replay'
 import { saveGraph, loadGraph, listVersions, rollbackGraph } from './lib/graph-store'
 import type { SerializedGraph } from './core/serializer'
 
-const OWNER = 'OnliestWizard'
-const REPO = 'Plant_Playground'
+// Your sandbox repo — the demo does real (recoverable) damage here.
+// Set PLAYGROUND_OWNER / PLAYGROUND_REPO in .env.local; the write-scoped
+// PAT behind the "playground" MCP server must match this repo.
+const OWNER = process.env.PLAYGROUND_OWNER ?? ''
+const REPO = process.env.PLAYGROUND_REPO ?? ''
+if (!OWNER || !REPO) {
+  console.error('Set PLAYGROUND_OWNER and PLAYGROUND_REPO in .env.local (a sandbox repo you own).')
+  process.exit(1)
+}
 const TOOL_NAME = 'playground_writer'
 const TRACE_FILE = 'demo_bad_trace.json'
 

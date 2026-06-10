@@ -1,117 +1,130 @@
 # fractal-node-core
 
-A graph execution engine for building AI agents that run natively on any platform.
+**Autonomy with receipts.** A graph execution engine where an LLM designs the
+graphs, the graphs are values — versioned, permissioned, contract-tested,
+replayable — and every action the system takes can be audited, rolled back,
+and watched again.
 
-Define agent logic once as a JSON graph. Emit working native code for web, Android, or iOS — no bridge layer, no runtime wrapper, no rewrite.
+Expensive reasoning happens once, at compile time: GPT-4o designs a typed
+JSON graph from a sentence. After that the graph executes deterministically,
+forever, for free. The system can save its own graphs as skills, test them
+before versioning, and compose them into bigger skills — it grows a library.
 
----
+## Two demos, one command each
 
-## The idea
-
-Every node is a typed unit of work with declared inputs, outputs, and side-effects. Nodes can contain subgraphs, and subgraphs can contain nodes — recursively, at any depth. That's the fractal part.
-
-The topology (the graph) is pure JSON. The implementations (the registry) are platform-specific functions. Keep them separate and the same agent logic runs anywhere.
-
----
-
-## What's built
-
-### Core engine
-
-- **Graph executor** — runs a `SerializedGraph` against a `RuntimeRegistry`. Independent nodes execute in parallel automatically (`Promise.all` on predecessor promises). Dependent nodes stay ordered.
-- **Loop nodes** (`loop: true`) — run a subgraph repeatedly until `$output.continue === false`. Feedback ports flow back into `$input` each iteration. Safety ceiling via `constraints.maxIterations`.
-- **Router nodes** (`router: true`) — execute one of N named subgraph branches based on `inputs.condition`. Boolean `true`/`false` maps to branch keys `"true"`/`"false"`.
-- **Agent nodes** (`agent: true`) — LLM-driven tool-calling loop. Declare `tools: NodeDefinition[]`, set `model` and `constraints.maxTurns`. The executor builds OpenAI tool schemas, handles parallel tool calls per turn, and loops until the model produces a final answer.
-- **Graph validation** — `validateGraph(graph)` returns typed errors before execution: unknown node/port references, type mismatches on edges, disconnected required inputs, multiple edges to the same port, cycle detection with exact node list.
-
-### Emitters
-
-Same graph JSON → native code on three platforms:
-
-| Platform | Target | Entry point |
-|---|---|---|
-| Web | JavaScript (ES modules) | `index.js` |
-| Android | Kotlin (`suspend fun`) | `Main.kt` |
-| iOS | Swift (`async throws`) | `Main.swift` |
-
-Each platform handles its own I/O: `fetch` / `URLSession` / `OkHttp` for network, `localStorage` / `UserDefaults` / `SharedPreferences` for memory.
-
-Subgraph nodes emit as separate files. Leaf nodes inline in their parent. The import graph mirrors the node graph.
-
-### Built-in capabilities
-
-| Node | What it does |
-|---|---|
-| `http_fetch` | Fetch a URL, return `{ body, status }` |
-| `research_answer` | Answer a question from fetched content (gpt-4o-mini) |
-| `draft_writer` | Generate a draft response (gpt-4o-mini) |
-| `quality_judge` | Evaluate a draft against the original prompt (gpt-4o) |
-| `memory_write` | Store a key/value to `.fractal_memory.json` |
-| `memory_read` | Read a key from `.fractal_memory.json`, returns `{ value, found }` |
-| `llm_reason` | Single-turn LLM call (Anthropic, adaptive thinking) |
-
-### Agent graphs
-
-| Graph | What it does |
-|---|---|
-| `RefineLoop` | Write/judge loop — draft_writer + quality_judge iterate until the judge says DONE |
-| `ResearchAgent` | Fetch a URL, answer a question from the content |
-| `ResearchAndRemember` | ResearchAgent + stores the answer in memory |
-| `Recall` | Read a stored answer by key |
-| `MemoryOrFetch` | Router — returns cached answer if found, otherwise fetches and stores |
-| `ToolAgent` | LLM agent with http_fetch, memory_read, memory_write as callable tools |
-
----
-
-## Running
-
-Requires `OPENAI_API_KEY` in env for LLM runners.
+**The real-stakes loop** — the system designs a GitHub-writing tool, tests
+it, versions it; a sabotaged change does real damage to a real repo; one
+call rolls back; the damage replays from the trace; the restored tool
+repairs it.
 
 ```bash
-# Tests (no API key needed)
-npm test
-
-# Research a URL
-npx tsx run_research.ts "https://en.wikipedia.org/wiki/Memoization" "What is memoization?"
-
-# Write/judge refinement loop
-npx tsx run_agent.ts "Write a TypeScript debounce function with JSDoc, under 30 lines."
-
-# Memory: store then recall
-npx tsx run_memory.ts write "https://en.wikipedia.org/wiki/Memoization" "What is memoization?"
-npx tsx run_memory.ts read "https://en.wikipedia.org/wiki/Memoization"
-
-# Router: cache hit/miss
-npx tsx run_memory_or_fetch.ts "https://en.wikipedia.org/wiki/Memoization" "What is memoization?"
-
-# Tool-calling agent
-npx tsx run_tool_agent.ts "Fetch https://en.wikipedia.org/wiki/Memoization, summarize it, then store it."
+npx tsx demo_real_stakes.ts
 ```
 
----
+**The compounding chain** — the system designs a skill, saves it through a
+contract-test gate, then receives a task that never mentions the library —
+and composes its own saved skills to solve it. Ends with a haiku on GitHub
+written through two layers of self-authored composition.
 
-## Architecture
-
-```
-SerializedGraph (JSON)
-      │
-      ▼
-  deserialize(graph, registry)
-      │
-      ▼
-  ExecutionGraph  ──►  runGraph()  ──►  outputs
-      │
-      ├──► emitGraphJS()     →  index.js, subgraph.js, ...
-      ├──► emitGraphKotlin() →  Main.kt, Subgraph.kt, ...
-      └──► emitGraphSwift()  →  Main.swift, Subgraph.swift, ...
+```bash
+npx tsx demo_compounding_chain.ts
 ```
 
-The registry maps leaf node IDs to platform-specific implementations. Swap the registry, keep the graph — different provider, same logic.
+## Why this is different
 
----
+Most agent systems re-reason on every run and leave no usable evidence
+behind. Here the unit of work is an inspectable artifact with governance
+built into the substrate, not bolted on outside:
 
-## What's next
+| Receipt | What it gives you |
+|---|---|
+| **Versioning** | every `save_graph` is content-hashed history; rollback is one call |
+| **Contract tests** | a graph carries its own test suite; `save_graph` runs it and *refuses to version a failing graph* |
+| **Permissions** | `allowedTools` threads as a stack of sets — nesting only narrows, never widens; skills gate by name |
+| **Lineage** | graphs spawned by graphs carry `parentGraphId` |
+| **Replay** | any trace replays as synthetic events, at recorded pace — watch a past run without re-executing |
 
-- Execution server (`POST /run`, `POST /validate`, `POST /emit/:platform`)
-- Node catalog (central registry of available node types for the editor)
-- Visual editor — wire nodes in a UI, export native code
+And the fractal property: a node's subgraph is the same type as the graph it
+lives in. A saved skill **is a node** — name it in any graph and it executes
+as a child, lineage stamped, permissions inherited. The `plant` node designs
+new graphs at runtime, so graphs grow graphs.
+
+## Quickstart
+
+```bash
+git clone https://github.com/OnliestWizard/fractal-node-core
+cd fractal-node-core && npm install
+cp .env.example .env.local   # then fill it in — see the comments there
+
+npm test            # 227 tests, no API keys needed
+npm run typecheck
+
+# design a graph from a sentence, then run it
+npx tsx run_plant.ts "fetch a URL and summarize it" --out graph.json
+npx tsx run_execute.ts --graph graph.json --inputs-file inputs.json --out trace.json
+
+# replay the trace at recorded pace
+npx tsx run_replay.ts --trace trace.json --speed 1
+```
+
+For the GitHub demos you need a **sandbox repo you own** (the demos write
+real commits to it, deliberately) and two fine-grained PATs — read-wide,
+write-narrow. `.env.example` walks through it.
+
+There's also an execution server (`npm run server`: validate / execute with
+SSE streaming / plant / replay) and a visual editor (`cd editor && npm run
+dev`) that renders graphs on a canvas and animates runs live.
+
+## How it works
+
+```
+"do X" ──► lib/plant.ts (GPT-4o, self-correcting against the validator)
+                │
+                ▼
+        SerializedGraph — pure JSON: typed ports, edges, subgraphs,
+                │         contract tests, lineage ids
+                ▼
+        lib/execute-engine.ts — topological execution, parallel where
+                │         independent; forEach/while/retry/router/agent
+                │         nodes; MCP tools; library skills as nodes;
+                │         permission gating; event stream
+                ▼
+        graphs/ library — versioned history under .versions/, gated by
+                          the graph's own contract tests
+```
+
+- `core/` — types, validator, serializer, the legacy registry executor and
+  emit pipeline
+- `lib/` — the canonical engine, Plant compiler, MCP pool, graph store,
+  replay, contract-test runner
+- `examples/` — runnable graph JSONs (routers, agents, meta-graphs, the
+  self-improvement loop)
+- `probability001-004.md` — design essays: where this goes, how it ships,
+  why contracts, and where the field is
+- `sessionstate.md` — the unedited build log
+
+MCP servers are configured in `mcp.json` — secret-free; `${VAR}` references
+resolve from `.env.local` at connect time. Ships wired for filesystem +
+GitHub (the GitHub entry appears twice on purpose: one read-only token for
+all repos, one write token scoped to the sandbox).
+
+## Emitters
+
+The same graph JSON also emits native code — JS (ES modules), Kotlin
+(`suspend fun`), Swift (`async throws`) — with platform-appropriate I/O.
+LLM/agent nodes emit stubs; deterministic logic ports cleanly. This is the
+least-developed direction of the project, kept because the IR makes it
+nearly free.
+
+## Honest status
+
+Solo project, moving fast. Things to know before you rely on it:
+
+- `run_js` executes LLM-generated code in a Node `vm` context — that is a
+  convenience, **not a security boundary**. Don't run untrusted graphs.
+- Plant currently speaks OpenAI (gpt-4o family); the engine itself is
+  model-agnostic.
+- The graph spec carries `specVersion: "1"` — breaking changes will bump it
+  with a migration story.
+- Built and tested on Windows + Node 22; nothing intentionally
+  platform-specific outside the docs.
