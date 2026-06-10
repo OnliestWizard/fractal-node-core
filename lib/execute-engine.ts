@@ -607,6 +607,7 @@ export async function executeSubgraph(
 
     const t0 = performance.now()
     let outputs: Record<string, unknown> | null = null
+    const dispatchId = node.builtin ?? nodeId
 
     emit({ type: 'start', nodeId, depth })
 
@@ -644,7 +645,7 @@ export async function executeSubgraph(
       } else if (node.agent) {
         console.log(`${indent}  ◈ ${nodeId} (agent, model=${node.model ?? 'gpt-4o-mini'})`)
         outputs = await runAgent(node, inputs, pool, indent, childPerms)
-      } else if (nodeId === 'plant') {
+      } else if (dispatchId === 'plant') {
         assertToolAllowed('plant', perms)
         console.log(`${indent}  ✦ ${nodeId} — designing graph for: "${inputs.task}"`)
         const planted = await plantGraph(String(inputs.task))
@@ -652,7 +653,7 @@ export async function executeSubgraph(
         planted.parentGraphId = graphId
         outputs = { graph: planted }
         console.log(`${indent}  ✓ ${nodeId}`)
-      } else if (nodeId === 'plant_with_prompt') {
+      } else if (dispatchId === 'plant_with_prompt') {
         assertToolAllowed('plant_with_prompt', perms)
         const task = String(inputs.task ?? '')
         const candidateInstructions = String(inputs.systemPrompt ?? '')
@@ -668,7 +669,7 @@ export async function executeSubgraph(
         } catch {}
         outputs = { valid, passes }
         console.log(`${indent}  ✓ plant_with_prompt — valid=${valid} passes=${passes}`)
-      } else if (nodeId === 'observe') {
+      } else if (dispatchId === 'observe') {
         const completed = localEvents.filter(e => e.type === 'complete').map(e => e.nodeId)
         const errors    = localEvents.filter((e): e is NodeEvent & { type: 'error'; error: string } => e.type === 'error')
         const nodeCount  = completed.length
@@ -681,7 +682,7 @@ export async function executeSubgraph(
         ].join('. ')
         outputs = { summary, nodeCount, errorCount, events: localEvents }
         console.log(`${indent}  👁 observe — ${nodeCount} completed, ${errorCount} errors`)
-      } else if (nodeId === 'execute_graph') {
+      } else if (dispatchId === 'execute_graph') {
         assertToolAllowed('execute_graph', perms)
         console.log(`${indent}  ▶ ${nodeId}`)
         const subGraph = inputs.graph as SerializedGraph
@@ -690,18 +691,17 @@ export async function executeSubgraph(
         const result = await executeSubgraph(subGraph, subInputs, pool, onEvent, depth + 1, false, undefined, childPerms)
         outputs = { outputs: result }
         console.log(`${indent}  ✓ ${nodeId}`)
-      } else if (nodeId.includes('__')) {
-        assertToolAllowed(nodeId, perms)
-        const sep = nodeId.indexOf('__')
-        const serverId = nodeId.slice(0, sep)
-        const toolName = nodeId.slice(sep + 2)
+      } else if (dispatchId.includes('__')) {
+        assertToolAllowed(dispatchId, perms)
+        const sep = dispatchId.indexOf('__')
+        const serverId = dispatchId.slice(0, sep)
+        const toolName = dispatchId.slice(sep + 2)
         const result = await pool.callTool(serverId, toolName, autoBox(inputs.params))
         outputs = { result }
         console.log(`${indent}  ✓ ${nodeId}`)
       } else {
-        const builtinId = node.builtin ?? nodeId
-        assertToolAllowed(builtinId, perms)
-        outputs = await runBuiltin(builtinId, inputs)
+        assertToolAllowed(dispatchId, perms)
+        outputs = await runBuiltin(dispatchId, inputs)
         console.log(`${indent}  ✓ ${nodeId}`)
       }
 

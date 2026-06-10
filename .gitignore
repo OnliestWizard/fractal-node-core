@@ -12,3 +12,9 @@ meta_saver_trace.json
 rollback_graph.json
 rollback_inputs.json
 rollback_trace.json
+playground_issue_graph.json
+playground_issue_inputs.json
+playground_issue_trace.json
+playground_scoped_graph.json
+playground_scoped_inputs.json
+playground_scoped_trace.json

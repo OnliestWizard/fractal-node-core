@@ -1,5 +1,65 @@
 # Session State — fractal-node-core
 
+## GitHub WRITE path confirmed ✓ (2026-06-10) — Plant_Playground issue #1
+
+First real GitHub write by a Plant-authored graph:
+https://github.com/OnliestWizard/Plant_Playground/issues/1
+(`Plant_Playground` is the user's sandbox repo for real-stakes demos.)
+
+Graph (`playground_issue_graph.json`, Plant pass 1/5):
+`$input(title, body) + literals(owner, repo, 4 pack keys) → pack → github__create_issue → $output(issue)`
+Run: `npx tsx run_execute.ts --graph playground_issue_graph.json --inputs-file playground_issue_inputs.json`
+
+Two real bugs found and fixed on the way:
+
+1. **Engine: renamed MCP nodes never reached the pool.** Plant renamed the node
+   `github_create_issue` with `builtin: "github__create_issue"`, but the MCP
+   routing check used `nodeId.includes('__')` — renamed nodes fell through to
+   `runBuiltin` → `No builtin for node`. Fix: `dispatchId = node.builtin ?? nodeId`
+   computed once in `executeSubgraph` and used for ALL id-based dispatch (plant,
+   plant_with_prompt, observe, execute_graph, MCP `__` routing, builtins) and the
+   permission checks. New regression test in executeEngine.test.ts (47 tests in
+   file, 199 total).
+2. **Auth: the GitHub PAT was never actually reaching the server.**
+   `@modelcontextprotocol/server-github` reads `GITHUB_PERSONAL_ACCESS_TOKEN`;
+   `.env.local` only had `GITHUB_TOKEN`. All "confirmed" GitHub runs on
+   2026-06-09 were unauthenticated public reads (search API allows them) — writes
+   401'd. Fix: added `GITHUB_PERSONAL_ACCESS_TOKEN` (same value) to `.env.local`.
+   Gotcha hit in the process: the file had no trailing newline, so `Add-Content`
+   glued the new line onto `GITHUB_TOKEN`'s value; repaired by rewriting lines.
+
+## Read-wide / write-narrow GitHub split ✓ (2026-06-10) — issue #2
+
+User's design: Plant reads from ALL repos (asset source) but writes only to
+Plant_Playground. A single fine-grained PAT can't split permissions per repo,
+so: **two tokens, two MCP server entries running the same server-github**.
+
+- `github` server → `GITHUB_PAT_READ` (read-only, all repos) → tools `github__*`
+- `playground` server → `GITHUB_PAT_WRITE` (read/write, only Plant_Playground) → tools `playground__*`
+
+This makes the infra split expressible in graph permissions too:
+`allowedTools: ["github__*", "playground__*"]` etc.
+
+- `lib/mcp-pool.ts`: server.env values now expand `${NAME}` from process.env —
+  mcp.json stays secret-free and committable.
+- `mcp.json`: github + playground entries, each setting
+  `GITHUB_PERSONAL_ACCESS_TOKEN: "${GITHUB_PAT_READ|WRITE}"`.
+- `.env.local`: `GITHUB_PAT_READ` / `GITHUB_PAT_WRITE` — **real fine-grained
+  PATs in place and verified (2026-06-10, post laptop crash)**. Old
+  `GITHUB_TOKEN` / `GITHUB_PERSONAL_ACCESS_TOKEN` lines deleted. Verified via
+  direct API probes: READ authenticates, sees all repos, write attempt → 403;
+  WRITE sees ONLY Plant_Playground and successfully posted a comment on
+  issue #1. Gotcha: tokens were pasted with surrounding double quotes —
+  dotenv strips them but raw shell use doesn't; quotes removed, file kept
+  BOM-less.
+- Plumbing live-confirmed: issue #2 created via `playground__create_issue`
+  (https://github.com/OnliestWizard/Plant_Playground/issues/2),
+  `playground_scoped_graph.json` (= issue graph with builtin retargeted).
+- Gotcha: PS 5.1 `Out-File -Encoding utf8` writes a BOM that run_execute's
+  JSON.parse rejects — write graph JSON BOM-less.
+- Note: Plant's catalog now lists ~66 MCP tools (14 fs + 26 github + 26
+  playground); the duplicate GitHub toolset is intentional (different scopes).
+
 ## Execution replay (2026-06-09 late) — COMPLETE ✓ (last substrate roadmap item)
 
 Replay = feed saved trace events back as synthetic `onEvent` calls. Nothing re-executes.

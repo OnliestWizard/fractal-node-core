@@ -101,6 +101,19 @@ describe('wire propagation', () => {
     }
     expect(await run(graph, { text: 'a\nb\nc' })).toEqual({ count: 3 })
   })
+
+  it('routes a renamed MCP node to the pool via the builtin field', async () => {
+    const graph: SerializedGraph = {
+      nodes: [
+        node('$input'),
+        node('renamed_mcp_call', { builtin: 'mock__echo', inputs: [p('params')], outputs: [p('result')] }),
+        node('$output', { inputs: [p('result')] }),
+      ],
+      edges: [edge('$input.params', 'renamed_mcp_call.params'), edge('renamed_mcp_call.result', '$output.result')],
+    }
+    const pool = fakePool({ mock__echo: args => args })
+    expect(await run(graph, { params: { a: 1 } }, pool)).toEqual({ result: { a: 1 } })
+  })
 })
 
 // ── Builtins ──────────────────────────────────────────────────────────────────
