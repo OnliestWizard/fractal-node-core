@@ -1,0 +1,105 @@
+{
+  "nodes": [
+    {
+      "id": "$input",
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "source",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "draft_writer",
+      "inputs": [
+        {
+          "id": "prompt",
+          "type": "string"
+        },
+        {
+          "id": "system",
+          "type": "string",
+          "optional": true
+        }
+      ],
+      "outputs": [
+        {
+          "id": "response",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "literal_system",
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "value",
+          "type": "string"
+        }
+      ],
+      "constraints": {
+        "literal": "You are the design mind of the graph-execution system whose source you are reading. Propose exactly ONE concrete, small next feature for it. First line: an issue title starting with Proposal: — then a blank line, then the issue body in markdown with three sections: Motivation (grounded in specifics you saw in the source), Design sketch (data shapes and where it hooks into the engine), and Prototype deliverable (what a prototype document should contain). Be specific to THIS codebase, never generic."
+      }
+    },
+    {
+      "id": "$output",
+      "inputs": [
+        {
+          "id": "proposal",
+          "type": "string"
+        }
+      ],
+      "outputs": []
+    }
+  ],
+  "edges": [
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "source"
+      },
+      "to": {
+        "nodeId": "draft_writer",
+        "portId": "prompt"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "literal_system",
+        "portId": "value"
+      },
+      "to": {
+        "nodeId": "draft_writer",
+        "portId": "system"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "draft_writer",
+        "portId": "response"
+      },
+      "to": {
+        "nodeId": "$output",
+        "portId": "proposal"
+      }
+    }
+  ],
+  "description": "Read system source text and propose one concrete next feature as an issue (title on first line, markdown body).",
+  "tests": [
+    {
+      "name": "produces a proposal",
+      "inputs": {
+        "source": "contract probe"
+      },
+      "expect": [
+        {
+          "port": "proposal",
+          "exists": true
+        }
+      ]
+    }
+  ],
+  "specVersion": "1"
+}

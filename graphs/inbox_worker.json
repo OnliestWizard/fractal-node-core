@@ -1,0 +1,187 @@
+{
+  "nodes": [
+    {
+      "id": "$input",
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "proposal",
+          "type": "string"
+        },
+        {
+          "id": "path",
+          "type": "string"
+        },
+        {
+          "id": "message",
+          "type": "string"
+        },
+        {
+          "id": "branch",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "system_literal",
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "value",
+          "type": "string"
+        }
+      ],
+      "constraints": {
+        "literal": "You are the prototyping engineer for a graph-execution system. Turn the given design proposal into a concrete prototype document in markdown: one paragraph restating the feature, a Design section with data shapes and engine hook points, and an Example section with code or graph JSON for the core piece. Concrete and brief."
+      }
+    },
+    {
+      "id": "draft_writer",
+      "inputs": [
+        {
+          "id": "prompt",
+          "type": "string"
+        },
+        {
+          "id": "system",
+          "type": "string"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "response",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "playground_writer",
+      "builtin": "playground_writer",
+      "inputs": [
+        {
+          "id": "path",
+          "type": "string"
+        },
+        {
+          "id": "content",
+          "type": "string"
+        },
+        {
+          "id": "message",
+          "type": "string"
+        },
+        {
+          "id": "branch",
+          "type": "string"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "result",
+          "type": "any"
+        }
+      ]
+    },
+    {
+      "id": "$output",
+      "inputs": [
+        {
+          "id": "result",
+          "type": "any"
+        }
+      ],
+      "outputs": []
+    }
+  ],
+  "edges": [
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "proposal"
+      },
+      "to": {
+        "nodeId": "draft_writer",
+        "portId": "prompt"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "system_literal",
+        "portId": "value"
+      },
+      "to": {
+        "nodeId": "draft_writer",
+        "portId": "system"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "path"
+      },
+      "to": {
+        "nodeId": "playground_writer",
+        "portId": "path"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "draft_writer",
+        "portId": "response"
+      },
+      "to": {
+        "nodeId": "playground_writer",
+        "portId": "content"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "message"
+      },
+      "to": {
+        "nodeId": "playground_writer",
+        "portId": "message"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "branch"
+      },
+      "to": {
+        "nodeId": "playground_writer",
+        "portId": "branch"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "playground_writer",
+        "portId": "result"
+      },
+      "to": {
+        "nodeId": "$output",
+        "portId": "result"
+      }
+    }
+  ],
+  "description": "Turn a design proposal into a prototype markdown document and commit it to the sandbox repo.",
+  "tests": [
+    {
+      "name": "publishes a prototype to the requested path",
+      "inputs": {
+        "proposal": "contract probe: a trivial feature sketch",
+        "path": "proposals/contract-probe.md",
+        "message": "graph CI: inbox_worker contract probe",
+        "branch": "main"
+      },
+      "expect": [
+        {
+          "port": "result",
+          "contains": "proposals/contract-probe.md"
+        }
+      ]
+    }
+  ],
+  "specVersion": "1"
+}

@@ -1,5 +1,32 @@
 # Session State — fractal-node-core
 
+## SELF-PROPOSAL LOOP ✓ (2026-06-10, late) — demo_self_proposal.ts
+
+probability004's "design its ultimate self" joke, made real and contained:
+the system reads its OWN engine source via the read-wide channel, proposes
+one concrete next feature, files it as a sandbox issue (write-narrow = it
+can propose its evolution, never perform it), and the inbox side turns the
+proposal into a committed prototype document linked back on the issue.
+
+- First live run closed the whole loop: read 39.8k chars of own source
+  (README + probability003 + execute-engine.ts) → proposed **"Graph
+  Contract Tests for Node Types"** (per-node contractTestId — a genuinely
+  sensible extension of this morning's graph CI, grounded in the source) →
+  issue #4 → proposals/issue-4.md committed → comment links them.
+- Two new gated library skills planted live: `self_proposer` (source →
+  proposal) and `inbox_worker` (proposal+path → committed prototype doc;
+  composes playground_writer as a skill-node inside its own contract test).
+  Library is now 6 skills.
+- `lib/skill-gate.ts` — `saveSkillThroughGate(name, graph, pool)` extracted
+  (third copy of the save-wrapper graph; demo_real_stakes/compounding_chain
+  still inline their own — candidate for /simplify).
+- **Bug found+fixed**: lib/mcp-catalog.ts ALSO spawns servers from mcp.json
+  and didn't expand ${VAR} in args (clementine only fixed mcp-pool) — Plant's
+  catalog silently lost all 14 filesystem tools. Probe-confirmed fixed (66
+  tools). Lesson: two codepaths read mcp.json; keep them in sync.
+- Human stays the decider: issues are left open; the footer on every
+  proposal says so explicitly.
+
 ## Go-public prep: README + config + sweep ✓ (2026-06-10, evening)
 
 Items 1–4 of the go-public list done (MIT LICENSE added + license field in

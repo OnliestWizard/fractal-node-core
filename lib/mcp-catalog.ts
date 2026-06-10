@@ -31,9 +31,11 @@ export async function loadMcpCatalog(configPath = 'mcp.json'): Promise<CatalogNo
   const nodes: CatalogNode[] = []
 
   for (const server of config.servers) {
+    // args may reference host env vars as ${NAME} — same contract as mcp-pool
+    const expand = (v: string) => v.replace(/\$\{(\w+)\}/g, (_, name) => process.env[name] ?? '')
     const transport = new StdioClientTransport({
       command: server.command,
-      args: server.args ?? [],
+      args: (server.args ?? []).map(expand),
     })
 
     const client = new Client({ name: 'fractal-plant', version: '0.1.0' })
