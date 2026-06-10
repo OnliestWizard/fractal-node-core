@@ -99,8 +99,8 @@ dev`) that renders graphs on a canvas and animates runs live.
   replay, contract-test runner
 - `examples/` — runnable graph JSONs (routers, agents, meta-graphs, the
   self-improvement loop)
-- `probability001-004.md` — design essays: where this goes, how it ships,
-  why contracts, and where the field is
+- `PROBABILITY.md` — master index of the strategy series; `probability001-006.md`
+  are the essays themselves, written in real time as the system was built
 - `sessionstate.md` — the unedited build log
 
 MCP servers are configured in `mcp.json` — secret-free; `${VAR}` references
