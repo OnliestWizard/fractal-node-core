@@ -1,0 +1,305 @@
+{
+  "nodes": [
+    {
+      "id": "$input",
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "problem",
+          "type": "string"
+        },
+        {
+          "id": "system",
+          "type": "string"
+        },
+        {
+          "id": "tests",
+          "type": "object"
+        },
+        {
+          "id": "path",
+          "type": "string"
+        },
+        {
+          "id": "message",
+          "type": "string"
+        },
+        {
+          "id": "branch",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "code_improve",
+      "inputs": [
+        {
+          "id": "problem",
+          "type": "string"
+        },
+        {
+          "id": "system",
+          "type": "string"
+        },
+        {
+          "id": "tests",
+          "type": "object"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "code",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "run_js",
+      "inputs": [
+        {
+          "id": "code",
+          "type": "string"
+        },
+        {
+          "id": "tests",
+          "type": "object"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "results",
+          "type": "object"
+        },
+        {
+          "id": "allPassed",
+          "type": "boolean"
+        },
+        {
+          "id": "summary",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "playground_writer",
+      "inputs": [
+        {
+          "id": "path",
+          "type": "string"
+        },
+        {
+          "id": "content",
+          "type": "string"
+        },
+        {
+          "id": "message",
+          "type": "string"
+        },
+        {
+          "id": "branch",
+          "type": "string"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "result",
+          "type": "any"
+        }
+      ]
+    },
+    {
+      "id": "$output",
+      "inputs": [
+        {
+          "id": "code",
+          "type": "string"
+        },
+        {
+          "id": "summary",
+          "type": "string"
+        },
+        {
+          "id": "allPassed",
+          "type": "boolean"
+        },
+        {
+          "id": "result",
+          "type": "any"
+        }
+      ],
+      "outputs": []
+    }
+  ],
+  "edges": [
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "problem"
+      },
+      "to": {
+        "nodeId": "code_improve",
+        "portId": "problem"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "system"
+      },
+      "to": {
+        "nodeId": "code_improve",
+        "portId": "system"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "tests"
+      },
+      "to": {
+        "nodeId": "code_improve",
+        "portId": "tests"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "code_improve",
+        "portId": "code"
+      },
+      "to": {
+        "nodeId": "run_js",
+        "portId": "code"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "tests"
+      },
+      "to": {
+        "nodeId": "run_js",
+        "portId": "tests"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "code_improve",
+        "portId": "code"
+      },
+      "to": {
+        "nodeId": "playground_writer",
+        "portId": "content"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "path"
+      },
+      "to": {
+        "nodeId": "playground_writer",
+        "portId": "path"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "message"
+      },
+      "to": {
+        "nodeId": "playground_writer",
+        "portId": "message"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "branch"
+      },
+      "to": {
+        "nodeId": "playground_writer",
+        "portId": "branch"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "code_improve",
+        "portId": "code"
+      },
+      "to": {
+        "nodeId": "$output",
+        "portId": "code"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "run_js",
+        "portId": "summary"
+      },
+      "to": {
+        "nodeId": "$output",
+        "portId": "summary"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "run_js",
+        "portId": "allPassed"
+      },
+      "to": {
+        "nodeId": "$output",
+        "portId": "allPassed"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "playground_writer",
+        "portId": "result"
+      },
+      "to": {
+        "nodeId": "$output",
+        "portId": "result"
+      }
+    }
+  ],
+  "description": "Write code for a problem with a judge loop, verify it against the given tests, commit it to the sandbox, and return the code with its test evidence.",
+  "tests": [
+    {
+      "name": "delivers working code to the requested path",
+      "inputs": {
+        "problem": "Write a function add(a, b) that returns the sum of a and b.",
+        "system": "Return only the JavaScript function, no explanations or markdown.",
+        "tests": [
+          {
+            "args": [
+              1,
+              2
+            ],
+            "expected": 3
+          },
+          {
+            "args": [
+              -1,
+              1
+            ],
+            "expected": 0
+          }
+        ],
+        "path": "planted/contract-probe-add.js",
+        "message": "graph CI: code_smith contract probe",
+        "branch": "main"
+      },
+      "expect": [
+        {
+          "port": "allPassed",
+          "equals": true
+        },
+        {
+          "port": "result",
+          "contains": "planted/contract-probe-add.js"
+        }
+      ]
+    }
+  ],
+  "specVersion": "1"
+}
