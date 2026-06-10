@@ -56,7 +56,11 @@ Laptop crashed mid-session; recovery + token swap completed:
 - Library version history for `playground_writer` carries entries from the
   two buggy demo runs — harmless, arguably good receipts.
 
-Working tree at session end: only sessionstate.md modified (this file).
+Session end: everything committed and pushed to origin/main — `e99f359`
+"scallions" (token split + dispatchId fix) and `96ee31d` "peaches"
+(demo_real_stakes.ts + playground_writer library entry + these notes).
+Working tree clean. Next session can start from the demo: it doubles as
+the product-story regression test (probability001 implication #2).
 
 ## GitHub WRITE path confirmed ✓ (2026-06-10) — Plant_Playground issue #1
 
