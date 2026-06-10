@@ -18,3 +18,7 @@ playground_issue_trace.json
 playground_scoped_graph.json
 playground_scoped_inputs.json
 playground_scoped_trace.json
+playground_file_graph.json
+playground_file_inputs.json
+playground_file_trace.json
+demo_bad_trace.json

@@ -1,5 +1,63 @@
 # Session State — fractal-node-core
 
+## Post-crash session (2026-06-10): real PATs live, work committed ✓
+
+Laptop crashed mid-session; recovery + token swap completed:
+
+- **Real fine-grained PATs in `.env.local` and verified.** Pasted with
+  surrounding double quotes — dotenv strips them but raw shell use doesn't;
+  quotes removed, file kept BOM-less. Old `GITHUB_TOKEN` /
+  `GITHUB_PERSONAL_ACCESS_TOKEN` lines deleted (env file is now just
+  `OPENAI_API_KEY` + the two PATs).
+- **Token scopes API-probed**: READ authenticates, sees all repos, write
+  attempt → 403. WRITE sees ONLY Plant_Playground, posted a comment on
+  issue #1. Split behaves exactly as designed.
+- **In-flight work committed and pushed**: `e99f359` "scallions" —
+  dispatchId fix + regression test, mcp-pool `${VAR}` expansion, two-server
+  mcp.json (secret-free), probability002.md. `playground_*` scratch
+  graph/inputs/trace files added to .gitignore (matching meta_saver /
+  rollback precedent). 199 tests + typecheck clean before commit.
+- **Scoped graph re-run end-to-end with the real tokens** → issue #3
+  (https://github.com/OnliestWizard/Plant_Playground/issues/3). Full path
+  confirmed: .env.local → dotenv → `${VAR}` expansion → per-server child
+  env → server-github authenticated write via `playground__create_issue`.
+  (`playground_scoped_inputs.json` body rewritten first — old text claimed
+  tokens were still classic placeholders.)
+
+- **Contents write also verified**: WRITE token committed
+  `probes/write-probe.md` directly via the contents API (commit 2886d2bc);
+  READ token attempt → 403. So Plant can create/update files in
+  Plant_Playground via `playground__create_or_update_file` /
+  `playground__push_files` / branch+PR tools — full repo write surface,
+  not just issues.
+
+- **Plant file write end-to-end ✓**: Plant designed the graph pass 1/5
+  (`playground_file_graph.json` — literals + 6-pair pack →
+  `playground__create_or_update_file`, MCP node renamed with `builtin`
+  field = live exercise of the dispatchId fix). Run created
+  `planted/hello-from-plant.md` on main (commit 3bbadeb). No graph JSON
+  hand-authored. Scratch triplet (`playground_file_*`) gitignored.
+
+- **REAL STAKES DEMO ✓ — `demo_real_stakes.ts`** (probability001 "Script it",
+  one command: `npx tsx demo_real_stakes.ts`). Eight beats, all live against
+  Plant_Playground: (1) Plant designs the writer tool from one sentence
+  (pass 1/5); (2) smoke-test run writes planted/demo-smoke-test.md;
+  (3) saved to library as `playground_writer` versioned + lineage id;
+  (4) sabotaged v2 hardcodes path literal "README.md"; (5) innocent run of
+  v2 clobbers the repo README (real damage, real commit); (6) rollback_graph
+  one call → v1 current again; (7) bad-run trace replayed at recorded pace
+  (26 events); (8) restored v1 tool repairs the README — verified
+  content-equal. Final run clean end-to-end.
+- **Gotcha found by the demo (cost 2 broken READMEs, both repaired):**
+  server-github `get_file_contents` returns `content` ALREADY DECODED but
+  leaves `encoding: "base64"` stale in the JSON — decoding again yields
+  mojibake. Never trust the encoding field; use content as-is. Worth noting
+  in Plant's catalog if graphs start reading files via GitHub MCP.
+- Library version history for `playground_writer` carries entries from the
+  two buggy demo runs — harmless, arguably good receipts.
+
+Working tree at session end: only sessionstate.md modified (this file).
+
 ## GitHub WRITE path confirmed ✓ (2026-06-10) — Plant_Playground issue #1
 
 First real GitHub write by a Plant-authored graph:
@@ -55,6 +113,9 @@ This makes the infra split expressible in graph permissions too:
 - Plumbing live-confirmed: issue #2 created via `playground__create_issue`
   (https://github.com/OnliestWizard/Plant_Playground/issues/2),
   `playground_scoped_graph.json` (= issue graph with builtin retargeted).
+- Re-confirmed end-to-end with the REAL fine-grained tokens: issue #3
+  (https://github.com/OnliestWizard/Plant_Playground/issues/3) — all 3 MCP
+  servers connected, write went through the playground channel.
 - Gotcha: PS 5.1 `Out-File -Encoding utf8` writes a BOM that run_execute's
   JSON.parse rejects — write graph JSON BOM-less.
 - Note: Plant's catalog now lists ~66 MCP tools (14 fs + 26 github + 26

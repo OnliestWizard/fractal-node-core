@@ -1,0 +1,359 @@
+{
+  "nodes": [
+    {
+      "id": "$input",
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "path",
+          "type": "string"
+        },
+        {
+          "id": "content",
+          "type": "string"
+        },
+        {
+          "id": "message",
+          "type": "string"
+        },
+        {
+          "id": "branch",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "owner_const",
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "value",
+          "type": "string"
+        }
+      ],
+      "constraints": {
+        "literal": "OnliestWizard"
+      }
+    },
+    {
+      "id": "repo_const",
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "value",
+          "type": "string"
+        }
+      ],
+      "constraints": {
+        "literal": "Plant_Playground"
+      }
+    },
+    {
+      "id": "params_pack",
+      "builtin": "pack",
+      "inputs": [
+        {
+          "id": "key1",
+          "type": "string"
+        },
+        {
+          "id": "value1",
+          "type": "any"
+        },
+        {
+          "id": "key2",
+          "type": "string"
+        },
+        {
+          "id": "value2",
+          "type": "any"
+        },
+        {
+          "id": "key3",
+          "type": "string"
+        },
+        {
+          "id": "value3",
+          "type": "any"
+        },
+        {
+          "id": "key4",
+          "type": "string"
+        },
+        {
+          "id": "value4",
+          "type": "any"
+        },
+        {
+          "id": "key5",
+          "type": "string"
+        },
+        {
+          "id": "value5",
+          "type": "any"
+        },
+        {
+          "id": "key6",
+          "type": "string"
+        },
+        {
+          "id": "value6",
+          "type": "any"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "object",
+          "type": "object"
+        }
+      ]
+    },
+    {
+      "id": "playground_create_or_update_file",
+      "builtin": "playground__create_or_update_file",
+      "inputs": [
+        {
+          "id": "params",
+          "type": "object"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "result",
+          "type": "any"
+        }
+      ]
+    },
+    {
+      "id": "key1_const",
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "value",
+          "type": "string"
+        }
+      ],
+      "constraints": {
+        "literal": "owner"
+      }
+    },
+    {
+      "id": "key2_const",
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "value",
+          "type": "string"
+        }
+      ],
+      "constraints": {
+        "literal": "repo"
+      }
+    },
+    {
+      "id": "key3_const",
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "value",
+          "type": "string"
+        }
+      ],
+      "constraints": {
+        "literal": "path"
+      }
+    },
+    {
+      "id": "key4_const",
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "value",
+          "type": "string"
+        }
+      ],
+      "constraints": {
+        "literal": "content"
+      }
+    },
+    {
+      "id": "key5_const",
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "value",
+          "type": "string"
+        }
+      ],
+      "constraints": {
+        "literal": "message"
+      }
+    },
+    {
+      "id": "key6_const",
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "value",
+          "type": "string"
+        }
+      ],
+      "constraints": {
+        "literal": "branch"
+      }
+    },
+    {
+      "id": "$output",
+      "inputs": [
+        {
+          "id": "result",
+          "type": "any"
+        }
+      ],
+      "outputs": []
+    }
+  ],
+  "edges": [
+    {
+      "from": {
+        "nodeId": "owner_const",
+        "portId": "value"
+      },
+      "to": {
+        "nodeId": "params_pack",
+        "portId": "value1"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "repo_const",
+        "portId": "value"
+      },
+      "to": {
+        "nodeId": "params_pack",
+        "portId": "value2"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "path"
+      },
+      "to": {
+        "nodeId": "params_pack",
+        "portId": "value3"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "content"
+      },
+      "to": {
+        "nodeId": "params_pack",
+        "portId": "value4"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "message"
+      },
+      "to": {
+        "nodeId": "params_pack",
+        "portId": "value5"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "branch"
+      },
+      "to": {
+        "nodeId": "params_pack",
+        "portId": "value6"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "key1_const",
+        "portId": "value"
+      },
+      "to": {
+        "nodeId": "params_pack",
+        "portId": "key1"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "key2_const",
+        "portId": "value"
+      },
+      "to": {
+        "nodeId": "params_pack",
+        "portId": "key2"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "key3_const",
+        "portId": "value"
+      },
+      "to": {
+        "nodeId": "params_pack",
+        "portId": "key3"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "key4_const",
+        "portId": "value"
+      },
+      "to": {
+        "nodeId": "params_pack",
+        "portId": "key4"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "key5_const",
+        "portId": "value"
+      },
+      "to": {
+        "nodeId": "params_pack",
+        "portId": "key5"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "key6_const",
+        "portId": "value"
+      },
+      "to": {
+        "nodeId": "params_pack",
+        "portId": "key6"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "params_pack",
+        "portId": "object"
+      },
+      "to": {
+        "nodeId": "playground_create_or_update_file",
+        "portId": "params"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "playground_create_or_update_file",
+        "portId": "result"
+      },
+      "to": {
+        "nodeId": "$output",
+        "portId": "result"
+      }
+    }
+  ],
+  "id": "g_7720cb4b"
+}
