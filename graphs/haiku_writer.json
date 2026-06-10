@@ -11,11 +11,29 @@
       ]
     },
     {
+      "id": "system_const",
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "value",
+          "type": "string"
+        }
+      ],
+      "constraints": {
+        "literal": "You are a haiku poet. Respond with ONLY a haiku — three lines, 5-7-5 syllables — about the given topic. No explanations."
+      }
+    },
+    {
       "id": "draft_writer",
       "inputs": [
         {
           "id": "prompt",
           "type": "string"
+        },
+        {
+          "id": "system",
+          "type": "string",
+          "optional": true
         }
       ],
       "outputs": [
@@ -49,6 +67,16 @@
     },
     {
       "from": {
+        "nodeId": "system_const",
+        "portId": "value"
+      },
+      "to": {
+        "nodeId": "draft_writer",
+        "portId": "system"
+      }
+    },
+    {
+      "from": {
         "nodeId": "draft_writer",
         "portId": "response"
       },
@@ -58,8 +86,20 @@
       }
     }
   ],
-  "id": "g_3b9a1da7",
-  "parentGraphId": "g_d434da03",
-  "description": "Write a haiku about a topic using draft_writer.",
+  "description": "Write a haiku about a topic. Returns the haiku text.",
+  "tests": [
+    {
+      "name": "produces a haiku",
+      "inputs": {
+        "topic": "contract probe"
+      },
+      "expect": [
+        {
+          "port": "haiku",
+          "exists": true
+        }
+      ]
+    }
+  ],
   "specVersion": "1"
 }

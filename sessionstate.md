@@ -1,5 +1,49 @@
 # Session State — fractal-node-core
 
+## THE COMPOUNDING CHAIN ✓ + skills are nodes (2026-06-10, post-nap session)
+
+The probability003 milestone ran end-to-end: `demo_compounding_chain.ts`
+(keeper artifact, like demo_real_stakes). 227 tests (20 files), typecheck clean.
+
+**The chain**: (1) Plant designs `haiku_writer` from one sentence; (2) saved
+through the graph-CI gate (tested=1, versioned); (3) task B — "write a haiku
+about recursion and publish it to Plant_Playground" — NEVER mentions the
+library, yet Plant composed `haiku_writer` + `playground_writer` on its own;
+(4) executed: nested ⬡ skill dispatch, 16 child completions, lineage stamped;
+(5) real haiku live at planted/recursion-haiku.md. Verdict line: "the library
+compounds."
+
+**New substrate feature — library skills ARE nodes.** First chain attempt
+failed instructively: Plant *invented* direct skill invocation (node id =
+skill name) instead of the load_graph/pack/execute_graph ceremony. We met the
+model where it went: engine dispatch now falls back from "No builtin" to a
+library lookup — loads the graph, executes as child (depth+1, lineage
+parentGraphId stamped, events bubble, allowedTools gates by SKILL NAME,
+builtins keep precedence). `⬡` console glyph. 5 new engine tests.
+
+**Library catalog with signatures** (composition needs visibility):
+`SerializedGraph.description` field; `libraryCatalog()` in graph-store
+extracts each graph's interface ($input/$output ports) + tested count;
+Plant's library prompt section now shows signatures + [n contract tests]
+badge + "PREFER COMPOSING / use directly as a node" instruction (shared
+`buildLibrarySection()`). Descriptions added to code_improve, planted_child,
+playground_writer.
+
+**valid ≠ correct demonstrated in miniature**: first successful chain
+published a 2KB recursion *explainer* as the "haiku" — skill A wired topic
+straight to draft_writer.prompt with no haiku instruction, and its weak
+contract (`haiku exists`) couldn't catch it. Fixed skill plants a literal
+system prompt; the library version history records the skill improving.
+Lesson for later: expectation ops like maxLength/lineCount would make
+contracts on LLM-output skills meaningfully stronger.
+
+Demo run notes: task B graphs sometimes parameterize constants via $input
+instead of literals — demo passes the task's stated values as inputs (a real
+caller would). graphB dumped to demo_chain_graphB.json (gitignored).
+
+**Next**: demo_real_stakes beat-4 upgrade (gate refusal + skipTests
+force-save) still pending; stronger expectation ops; go-public prep.
+
 ## Graph CI — contract tests gate versioning ✓ (2026-06-10, after the demo)
 
 probability003.md written (the evolution thesis: "every skill has a contract")

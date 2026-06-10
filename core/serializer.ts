@@ -35,6 +35,9 @@ export interface GraphTestCase {
 
 export interface SerializedGraph {
   specVersion?: string
+  /** What this graph does — shown in Plant's library catalog so saved skills
+   *  can be discovered and composed. */
+  description?: string
   // Lineage — assigned by the executor on first run; parentGraphId is set when
   // a graph is spawned by a `plant` or `execute_graph` node inside another graph
   id?: string

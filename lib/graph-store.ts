@@ -86,3 +86,31 @@ export function listGraphs(): string[] {
     .filter(f => f.endsWith('.json'))
     .map(f => f.replace(/\.json$/, ''))
 }
+
+export interface LibraryEntry {
+  name: string
+  description?: string
+  /** The graph's callable interface: $input's outputs / $output's inputs. */
+  inputs: Array<{ id: string; type: string; optional?: boolean }>
+  outputs: Array<{ id: string; type: string; optional?: boolean }>
+  /** Number of contract tests the graph carries (run by save_graph). */
+  tested: number
+}
+
+// The library as a catalog of composable skills — what Plant reads to decide
+// whether a saved graph already covers part of a task.
+export function libraryCatalog(): LibraryEntry[] {
+  const entries: LibraryEntry[] = []
+  for (const name of listGraphs()) {
+    const { graph } = loadGraph(name)
+    if (!graph) continue
+    entries.push({
+      name,
+      description: graph.description,
+      inputs: graph.nodes.find(n => n.id === '$input')?.outputs ?? [],
+      outputs: graph.nodes.find(n => n.id === '$output')?.inputs ?? [],
+      tested: graph.tests?.length ?? 0,
+    })
+  }
+  return entries
+}

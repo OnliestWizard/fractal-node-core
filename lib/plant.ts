@@ -3,7 +3,7 @@ import { validateGraph } from '../core/validator'
 import type { ValidationError } from '../core/validator'
 import type { SerializedGraph } from '../core/serializer'
 import { loadMcpCatalog } from './mcp-catalog'
-import { listGraphs } from './graph-store'
+import { listGraphs, libraryCatalog } from './graph-store'
 
 let _client: OpenAI | undefined
 const client = () => (_client ??= new OpenAI())
@@ -323,6 +323,21 @@ async function callLLM(messages: OpenAI.Chat.ChatCompletionMessageParam[]): Prom
   return resp.choices[0].message.content ?? '{}'
 }
 
+// The library rendered as a catalog of composable skills. Signatures matter:
+// Plant can only compose what it can see.
+export function buildLibrarySection(): string {
+  const entries = libraryCatalog()
+  if (entries.length === 0) return ''
+
+  const entryText = entries.map(e => {
+    const sig = (ports: typeof e.inputs) => ports.map(p => `${p.id}: ${p.type}${p.optional ? '?' : ''}`).join(', ')
+    const badge = e.tested > 0 ? ` [${e.tested} contract test${e.tested > 1 ? 's' : ''}]` : ''
+    return `  - "${e.name}"${badge}${e.description ? ` — ${e.description}` : ''}\n      inputs:  (${sig(e.inputs)})\n      outputs: (${sig(e.outputs)})`
+  }).join('\n')
+
+  return `\n\nGraph library — saved, versioned, contract-tested skills. PREFER COMPOSING THESE over rebuilding equivalent logic from leaf nodes. A library skill is used DIRECTLY AS A NODE: give the node the skill's name as its id (or set "builtin" to the skill name if you rename it), declare the inputs and outputs exactly as listed below, and wire them like any other node. (load_graph + execute_graph still work when you need a specific historical version.)\n${entryText}`
+}
+
 async function buildSystem(): Promise<string> {
   const mcpNodes = await loadMcpCatalog()
   const catalog = [...BUILTIN_CATALOG, ...mcpNodes]
@@ -338,11 +353,7 @@ async function buildSystem(): Promise<string> {
     `\n  id: "${n.id}"\n  description: ${n.description}\n  inputs:  ${JSON.stringify(n.inputs)}\n  outputs: ${JSON.stringify(n.outputs)}`
   ).join('\n')
 
-  const librarySection = savedGraphs.length > 0
-    ? `\n\nGraph library — reusable saved graphs (load with load_graph, run with execute_graph):\n${savedGraphs.map(n => `  - "${n}"`).join('\n')}`
-    : ''
-
-  return SYSTEM_TEMPLATE.replace('CATALOG_PLACEHOLDER', catalogText) + librarySection
+  return SYSTEM_TEMPLATE.replace('CATALOG_PLACEHOLDER', catalogText) + buildLibrarySection()
 }
 
 export async function buildCatalogSection(): Promise<string> {
@@ -351,11 +362,7 @@ export async function buildCatalogSection(): Promise<string> {
   const catalogText = catalog.map(n =>
     `\n  id: "${n.id}"\n  description: ${n.description}\n  inputs:  ${JSON.stringify(n.inputs)}\n  outputs: ${JSON.stringify(n.outputs)}`
   ).join('\n')
-  const savedGraphs = listGraphs()
-  const librarySection = savedGraphs.length > 0
-    ? `\n\nGraph library:\n${savedGraphs.map(n => `  - "${n}"`).join('\n')}`
-    : ''
-  return `Available leaf nodes (use these ids exactly):\n${catalogText}${librarySection}`
+  return `Available leaf nodes (use these ids exactly):\n${catalogText}${buildLibrarySection()}`
 }
 
 export async function plantGraphTracked(

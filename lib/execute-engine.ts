@@ -721,8 +721,20 @@ export async function executeSubgraph(
         console.log(`${indent}  ✓ ${nodeId}`)
       } else {
         assertToolAllowed(dispatchId, perms)
-        outputs = await runBuiltin(dispatchId, inputs)
-        console.log(`${indent}  ✓ ${nodeId}`)
+        try {
+          outputs = await runBuiltin(dispatchId, inputs)
+          console.log(`${indent}  ✓ ${nodeId}`)
+        } catch (err) {
+          // Not a builtin? A saved library graph IS a node — dispatch by name.
+          // (Builtins keep precedence; this only runs on unknown ids.)
+          if (!String(err).includes('No builtin for node')) throw err
+          const { graph: skill, found } = loadGraph(dispatchId)
+          if (!found || !skill) throw err
+          console.log(`${indent}  ⬡ ${nodeId} (library skill)`)
+          skill.parentGraphId ??= graphId
+          outputs = await executeSubgraph(skill, inputs, pool, onEvent, depth + 1, true, localEvents, childPerms)
+          console.log(`${indent}  ✓ ${nodeId}`)
+        }
       }
 
       emit({ type: 'complete', nodeId, durationMs: performance.now() - t0, depth })

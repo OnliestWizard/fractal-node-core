@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, rmSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import { saveGraph, loadGraph, listVersions, rollbackGraph, listGraphs } from '../lib/graph-store'
+import { saveGraph, loadGraph, listVersions, rollbackGraph, listGraphs, libraryCatalog } from '../lib/graph-store'
 import type { SerializedGraph } from '../core/serializer'
 
 const graph = (tag: string): SerializedGraph => ({
@@ -44,6 +44,34 @@ describe('save / load', () => {
   it('listGraphs excludes the .versions directory', () => {
     saveGraph('demo', graph('v1'))
     expect(listGraphs()).toEqual(['demo'])
+  })
+})
+
+describe('libraryCatalog', () => {
+  it('exposes each graph as a composable skill signature', () => {
+    const skill: SerializedGraph = {
+      description: 'echoes a value',
+      nodes: [
+        { id: '$input', inputs: [], outputs: [{ id: 'value', type: 'string' }] },
+        { id: '$output', inputs: [{ id: 'value', type: 'string' }], outputs: [] },
+      ],
+      edges: [{ from: { nodeId: '$input', portId: 'value' }, to: { nodeId: '$output', portId: 'value' } }],
+      tests: [{ inputs: { value: 'x' }, expect: [{ port: 'value', equals: 'x' }] }],
+    }
+    saveGraph('echo_skill', skill)
+    saveGraph('bare', graph('v1'))
+
+    const catalog = libraryCatalog()
+    const echo = catalog.find(e => e.name === 'echo_skill')
+    expect(echo).toMatchObject({
+      description: 'echoes a value',
+      inputs: [{ id: 'value', type: 'string' }],
+      outputs: [{ id: 'value', type: 'string' }],
+      tested: 1,
+    })
+    const bare = catalog.find(e => e.name === 'bare')
+    expect(bare).toMatchObject({ tested: 0, inputs: [], outputs: [] })
+    expect(bare!.description).toBeUndefined()
   })
 })
 

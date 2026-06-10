@@ -2,7 +2,7 @@ import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { mkdtempSync, rmSync, existsSync } from 'fs'
 import { tmpdir } from 'os'
 import { join } from 'path'
-import { executeSubgraph, runGraphTests } from '../lib/execute-engine'
+import { executeSubgraph, runGraphTests, type NodeEvent } from '../lib/execute-engine'
 import { valueAtPath, checkExpectation } from '../lib/graph-tests'
 import { loadGraph, listVersions } from '../lib/graph-store'
 import type { SerializedGraph, SerializedNode } from '../core/serializer'
@@ -251,6 +251,91 @@ describe('save_graph test gate', () => {
   it('saveGraph stamps specVersion', async () => {
     await executeSubgraph(saveWrapper, { graph: passthrough() }, fakePool())
     expect(loadGraph('gated').graph?.specVersion).toBe('1')
+  })
+})
+
+describe('library skill as node', () => {
+  let dir: string
+
+  beforeEach(() => {
+    dir = mkdtempSync(join(tmpdir(), 'skill-node-'))
+    process.env.FRACTAL_GRAPHS_DIR = dir
+  })
+
+  afterEach(() => {
+    delete process.env.FRACTAL_GRAPHS_DIR
+    rmSync(dir, { recursive: true, force: true })
+  })
+
+  // doubler skill: $input.n → mock__double → $output.doubled
+  const saveDoubler = async (pool: McpPool) => {
+    const skill: SerializedGraph = {
+      nodes: [
+        node('$input', { outputs: [p('params')] }),
+        node('dbl', { builtin: 'mock__double', inputs: [p('params')], outputs: [p('result')] }),
+        node('$output', { inputs: [p('doubled')] }),
+      ],
+      edges: [edge('$input.params', 'dbl.params'), edge('dbl.result', '$output.doubled')],
+    }
+    // store-level save (no engine gate needed for fixtures)
+    const { saveGraph } = await import('../lib/graph-store')
+    saveGraph('doubler', skill)
+    return pool
+  }
+
+  const caller: SerializedGraph = {
+    nodes: [
+      node('$input', { outputs: [p('params')] }),
+      node('doubler', { inputs: [p('params')], outputs: [p('doubled')] }),
+      node('$output', { inputs: [p('doubled')] }),
+    ],
+    edges: [edge('$input.params', 'doubler.params'), edge('doubler.doubled', '$output.doubled')],
+  }
+
+  it('dispatches a node whose id matches a saved graph', async () => {
+    const pool = fakePool({ mock__double: args => ({ n: (args.n as number) * 2 }) })
+    await saveDoubler(pool)
+    const out = await executeSubgraph(caller, { params: { n: 21 } }, pool)
+    expect(out.doubled).toEqual({ n: 42 })
+  })
+
+  it('dispatches via the builtin field when renamed', async () => {
+    const pool = fakePool({ mock__double: args => ({ n: (args.n as number) * 2 }) })
+    await saveDoubler(pool)
+    const renamed: SerializedGraph = JSON.parse(JSON.stringify(caller))
+    renamed.nodes.find(n => n.id === 'doubler')!.id = 'double_it'
+    renamed.nodes.find(n => n.id === 'double_it')!.builtin = 'doubler'
+    renamed.edges = [edge('$input.params', 'double_it.params'), edge('double_it.doubled', '$output.doubled')]
+    const out = await executeSubgraph(renamed, { params: { n: 3 } }, pool)
+    expect(out.doubled).toEqual({ n: 6 })
+  })
+
+  it('stamps lineage on the skill child', async () => {
+    const pool = fakePool({ mock__double: args => args })
+    await saveDoubler(pool)
+    const events: NodeEvent[] = []
+    await executeSubgraph(caller, { params: { n: 1 } }, pool, e => events.push(e))
+    // child nodes ran at depth 1
+    expect(events.some(e => e.depth === 1 && e.nodeId === 'dbl')).toBe(true)
+  })
+
+  it('unknown ids still throw No builtin (library miss does not swallow)', async () => {
+    const events: NodeEvent[] = []
+    const bad: SerializedGraph = JSON.parse(JSON.stringify(caller))
+    bad.nodes.find(n => n.id === 'doubler')!.id = 'nonexistent_skill'
+    bad.edges = [edge('$input.params', 'nonexistent_skill.params'), edge('nonexistent_skill.doubled', '$output.doubled')]
+    await executeSubgraph(bad, { params: {} }, fakePool(), e => events.push(e))
+    expect(events.some(e => e.type === 'error' && e.error?.includes('No builtin for node'))).toBe(true)
+  })
+
+  it('is gated by allowedTools under the skill name', async () => {
+    const pool = fakePool({ mock__double: args => args })
+    await saveDoubler(pool)
+    const events: NodeEvent[] = []
+    await executeSubgraph(caller, { params: { n: 1 } }, pool, e => events.push(e), 0, false, undefined, ['something_else'])
+    expect(events.some(e => e.type === 'error' && e.error?.includes('blocked by allowedTools'))).toBe(true)
+    const ok = await executeSubgraph(caller, { params: { n: 1 } }, pool, undefined, 0, false, undefined, ['doubler', 'mock__*'])
+    expect(ok.doubled).toEqual({ n: 1 })
   })
 })
 

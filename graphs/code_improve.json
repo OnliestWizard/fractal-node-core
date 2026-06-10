@@ -4,27 +4,55 @@
       "id": "$input",
       "inputs": [],
       "outputs": [
-        { "id": "problem", "type": "string" },
-        { "id": "system",  "type": "string" },
-        { "id": "tests",   "type": "object" }
+        {
+          "id": "problem",
+          "type": "string"
+        },
+        {
+          "id": "system",
+          "type": "string"
+        },
+        {
+          "id": "tests",
+          "type": "object"
+        }
       ]
     },
     {
       "id": "$output",
-      "inputs": [{ "id": "code", "type": "string" }],
+      "inputs": [
+        {
+          "id": "code",
+          "type": "string"
+        }
+      ],
       "outputs": []
     },
     {
       "id": "while_loop",
       "loop": true,
-      "constraints": { "maxIterations": 10 },
+      "constraints": {
+        "maxIterations": 10
+      },
       "inputs": [
-        { "id": "problem", "type": "string" },
-        { "id": "system",  "type": "string" },
-        { "id": "tests",   "type": "object" }
+        {
+          "id": "problem",
+          "type": "string"
+        },
+        {
+          "id": "system",
+          "type": "string"
+        },
+        {
+          "id": "tests",
+          "type": "object"
+        }
       ],
       "outputs": [
-        { "id": "draft", "type": "string" }
+        {
+          "id": "draft",
+          "type": "string"
+        }
       ],
       "subgraph": {
         "nodes": [
@@ -32,79 +60,304 @@
             "id": "$input",
             "inputs": [],
             "outputs": [
-              { "id": "problem",  "type": "string" },
-              { "id": "system",   "type": "string" },
-              { "id": "tests",    "type": "object" },
-              { "id": "draft",    "type": "string",  "optional": true },
-              { "id": "feedback", "type": "string",  "optional": true }
+              {
+                "id": "problem",
+                "type": "string"
+              },
+              {
+                "id": "system",
+                "type": "string"
+              },
+              {
+                "id": "tests",
+                "type": "object"
+              },
+              {
+                "id": "draft",
+                "type": "string",
+                "optional": true
+              },
+              {
+                "id": "feedback",
+                "type": "string",
+                "optional": true
+              }
             ]
           },
           {
             "id": "$output",
             "inputs": [
-              { "id": "draft",    "type": "string" },
-              { "id": "feedback", "type": "string" },
-              { "id": "continue", "type": "boolean" }
+              {
+                "id": "draft",
+                "type": "string"
+              },
+              {
+                "id": "feedback",
+                "type": "string"
+              },
+              {
+                "id": "continue",
+                "type": "boolean"
+              }
             ],
             "outputs": []
           },
           {
             "id": "draft_writer",
             "inputs": [
-              { "id": "prompt",   "type": "string" },
-              { "id": "system",   "type": "string" },
-              { "id": "draft",    "type": "string", "optional": true },
-              { "id": "feedback", "type": "string", "optional": true }
+              {
+                "id": "prompt",
+                "type": "string"
+              },
+              {
+                "id": "system",
+                "type": "string"
+              },
+              {
+                "id": "draft",
+                "type": "string",
+                "optional": true
+              },
+              {
+                "id": "feedback",
+                "type": "string",
+                "optional": true
+              }
             ],
-            "outputs": [{ "id": "response", "type": "string" }]
+            "outputs": [
+              {
+                "id": "response",
+                "type": "string"
+              }
+            ]
           },
           {
             "id": "run_js",
             "inputs": [
-              { "id": "code",  "type": "string" },
-              { "id": "tests", "type": "object" }
+              {
+                "id": "code",
+                "type": "string"
+              },
+              {
+                "id": "tests",
+                "type": "object"
+              }
             ],
             "outputs": [
-              { "id": "results",   "type": "object" },
-              { "id": "allPassed", "type": "boolean" },
-              { "id": "summary",   "type": "string" }
+              {
+                "id": "results",
+                "type": "object"
+              },
+              {
+                "id": "allPassed",
+                "type": "boolean"
+              },
+              {
+                "id": "summary",
+                "type": "string"
+              }
             ]
           },
           {
             "id": "quality_judge",
             "inputs": [
-              { "id": "prompt",      "type": "string" },
-              { "id": "draft",       "type": "string" },
-              { "id": "testResults", "type": "string", "optional": true }
+              {
+                "id": "prompt",
+                "type": "string"
+              },
+              {
+                "id": "draft",
+                "type": "string"
+              },
+              {
+                "id": "testResults",
+                "type": "string",
+                "optional": true
+              }
             ],
             "outputs": [
-              { "id": "response", "type": "string" },
-              { "id": "continue", "type": "boolean" },
-              { "id": "feedback", "type": "string" }
+              {
+                "id": "response",
+                "type": "string"
+              },
+              {
+                "id": "continue",
+                "type": "boolean"
+              },
+              {
+                "id": "feedback",
+                "type": "string"
+              }
             ]
           }
         ],
         "edges": [
-          { "from": { "nodeId": "$input",       "portId": "problem"  }, "to": { "nodeId": "draft_writer",  "portId": "prompt"      } },
-          { "from": { "nodeId": "$input",       "portId": "system"   }, "to": { "nodeId": "draft_writer",  "portId": "system"      } },
-          { "from": { "nodeId": "$input",       "portId": "draft"    }, "to": { "nodeId": "draft_writer",  "portId": "draft"       } },
-          { "from": { "nodeId": "$input",       "portId": "feedback" }, "to": { "nodeId": "draft_writer",  "portId": "feedback"    } },
-          { "from": { "nodeId": "draft_writer", "portId": "response" }, "to": { "nodeId": "run_js",        "portId": "code"        } },
-          { "from": { "nodeId": "$input",       "portId": "tests"    }, "to": { "nodeId": "run_js",        "portId": "tests"       } },
-          { "from": { "nodeId": "draft_writer", "portId": "response" }, "to": { "nodeId": "quality_judge", "portId": "draft"       } },
-          { "from": { "nodeId": "$input",       "portId": "problem"  }, "to": { "nodeId": "quality_judge", "portId": "prompt"      } },
-          { "from": { "nodeId": "run_js",       "portId": "summary"  }, "to": { "nodeId": "quality_judge", "portId": "testResults" } },
-          { "from": { "nodeId": "draft_writer", "portId": "response" }, "to": { "nodeId": "$output",       "portId": "draft"       } },
-          { "from": { "nodeId": "quality_judge","portId": "continue" }, "to": { "nodeId": "$output",       "portId": "continue"    } },
-          { "from": { "nodeId": "quality_judge","portId": "feedback" }, "to": { "nodeId": "$output",       "portId": "feedback"    } }
+          {
+            "from": {
+              "nodeId": "$input",
+              "portId": "problem"
+            },
+            "to": {
+              "nodeId": "draft_writer",
+              "portId": "prompt"
+            }
+          },
+          {
+            "from": {
+              "nodeId": "$input",
+              "portId": "system"
+            },
+            "to": {
+              "nodeId": "draft_writer",
+              "portId": "system"
+            }
+          },
+          {
+            "from": {
+              "nodeId": "$input",
+              "portId": "draft"
+            },
+            "to": {
+              "nodeId": "draft_writer",
+              "portId": "draft"
+            }
+          },
+          {
+            "from": {
+              "nodeId": "$input",
+              "portId": "feedback"
+            },
+            "to": {
+              "nodeId": "draft_writer",
+              "portId": "feedback"
+            }
+          },
+          {
+            "from": {
+              "nodeId": "draft_writer",
+              "portId": "response"
+            },
+            "to": {
+              "nodeId": "run_js",
+              "portId": "code"
+            }
+          },
+          {
+            "from": {
+              "nodeId": "$input",
+              "portId": "tests"
+            },
+            "to": {
+              "nodeId": "run_js",
+              "portId": "tests"
+            }
+          },
+          {
+            "from": {
+              "nodeId": "draft_writer",
+              "portId": "response"
+            },
+            "to": {
+              "nodeId": "quality_judge",
+              "portId": "draft"
+            }
+          },
+          {
+            "from": {
+              "nodeId": "$input",
+              "portId": "problem"
+            },
+            "to": {
+              "nodeId": "quality_judge",
+              "portId": "prompt"
+            }
+          },
+          {
+            "from": {
+              "nodeId": "run_js",
+              "portId": "summary"
+            },
+            "to": {
+              "nodeId": "quality_judge",
+              "portId": "testResults"
+            }
+          },
+          {
+            "from": {
+              "nodeId": "draft_writer",
+              "portId": "response"
+            },
+            "to": {
+              "nodeId": "$output",
+              "portId": "draft"
+            }
+          },
+          {
+            "from": {
+              "nodeId": "quality_judge",
+              "portId": "continue"
+            },
+            "to": {
+              "nodeId": "$output",
+              "portId": "continue"
+            }
+          },
+          {
+            "from": {
+              "nodeId": "quality_judge",
+              "portId": "feedback"
+            },
+            "to": {
+              "nodeId": "$output",
+              "portId": "feedback"
+            }
+          }
         ]
       }
     }
   ],
   "edges": [
-    { "from": { "nodeId": "$input",    "portId": "problem" }, "to": { "nodeId": "while_loop", "portId": "problem" } },
-    { "from": { "nodeId": "$input",    "portId": "system"  }, "to": { "nodeId": "while_loop", "portId": "system"  } },
-    { "from": { "nodeId": "$input",    "portId": "tests"   }, "to": { "nodeId": "while_loop", "portId": "tests"   } },
-    { "from": { "nodeId": "while_loop","portId": "draft"   }, "to": { "nodeId": "$output",    "portId": "code"    } }
-  ]
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "problem"
+      },
+      "to": {
+        "nodeId": "while_loop",
+        "portId": "problem"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "system"
+      },
+      "to": {
+        "nodeId": "while_loop",
+        "portId": "system"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "tests"
+      },
+      "to": {
+        "nodeId": "while_loop",
+        "portId": "tests"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "while_loop",
+        "portId": "draft"
+      },
+      "to": {
+        "nodeId": "$output",
+        "portId": "code"
+      }
+    }
+  ],
+  "description": "Write JavaScript code for a problem statement and iteratively improve it until run_js tests pass and a quality judge approves. Returns the final code.",
+  "specVersion": "1"
 }

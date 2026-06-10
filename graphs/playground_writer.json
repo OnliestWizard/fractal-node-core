@@ -373,5 +373,6 @@
       ]
     }
   ],
-  "specVersion": "1"
+  "specVersion": "1",
+  "description": "Write (create or update) a file in the OnliestWizard/Plant_Playground GitHub repo, committing directly to the given branch. Returns the GitHub API result JSON."
 }
