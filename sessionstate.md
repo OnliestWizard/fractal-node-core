@@ -1,5 +1,16 @@
 # Session State — fractal-node-core
 
+## History rewritten (2026-06-10, last act): photos purged ✓
+
+`git filter-repo` removed the two personal jpgs from ALL history (verified
+zero jpg objects via rev-list --objects --all); force-pushed. **All commit
+hashes from the photo commits onward changed** — older hashes quoted in
+these notes are stale; the food-word commit subjects still identify them.
+Gemini.md / Gpt.md / Hmmmm.md still exist in history (only photos were
+scrubbed; same one-command procedure if wanted). Any other clone of this
+repo must be re-cloned. Go-public list: COMPLETE — flipping visibility is
+now purely the user's call.
+
 ## SELF-PROPOSAL LOOP ✓ (2026-06-10, late) — demo_self_proposal.ts
 
 probability004's "design its ultimate self" joke, made real and contained:
