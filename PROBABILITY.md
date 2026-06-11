@@ -94,7 +94,9 @@ property. The idea-novelty window is closing; ship.**
 failure→eval conversion — the contract thesis arriving outside-in from the
 observability category. Confirms the convergence; sharpens the pitch
 (inside-out vs outside-in); contributes a queued feature: **failed traces
-auto-draft contract tests**. Details in 004.
+auto-draft contract tests** — ✓ built 2026-06-11: `lib/test-draft.ts` +
+`draft_test` builtin + CLI; a failure receipt becomes a gate-enforced
+regression test in one command. Details in 004.
 
 ## 005 — The Ladder (2026-06-10)
 

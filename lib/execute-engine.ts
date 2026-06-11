@@ -20,6 +20,8 @@ import { plantGraph, plantGraphTracked, buildCatalogSection } from './plant'
 import { saveGraph, loadGraph, listVersions, rollbackGraph } from './graph-store'
 import { checkExpectation, buildReport, type GraphTestReport, type GraphTestResult } from './graph-tests'
 import { recordUsage } from './llm-usage'
+import { draftTestFromTrace } from './test-draft'
+import type { TraceFile } from './trace-markdown'
 
 export type NodeEvent = (
   | { type: 'start';    nodeId: string; depth: number }
@@ -147,6 +149,15 @@ async function runBuiltin(nodeId: string, inputs: Record<string, unknown>): Prom
       recordUsage('gpt-4o', res.usage)
       const p = JSON.parse(res.choices[0].message.content ?? '{}')
       return { response: p.response ?? '', continue: p.continue ?? false, feedback: p.feedback ?? '' }
+    }
+
+    case 'draft_test': {
+      const result = draftTestFromTrace(
+        inputs.trace as TraceFile,
+        inputs.graph as SerializedGraph | undefined,
+        { expectError: inputs.expectError === true },
+      )
+      return { drafted: result.drafted, test: result.test ?? {}, reason: result.reason }
     }
 
     case 'run_js': {

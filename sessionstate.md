@@ -1,5 +1,30 @@
 # Session State — fractal-node-core
 
+## The Raindrop steal ✓ (2026-06-11) — failed traces become contract tests
+
+probability004's queued feature, built in three layers. 271 tests (25
+files), typecheck clean.
+
+- **`lib/test-draft.ts`** — `draftTestFromTrace(trace, graph?, {expectError?})`
+  → `{drafted, test?, reason}`. Finds the first error event, replays the
+  trace's recorded inputs, and requires every $output port the failure
+  prevented (`exists` per port; graph's $output is the source, recorded
+  output keys the fallback). `expectError: true` instead locks in a failure
+  as correct behavior (validation). Declines cleanly: no failure / no
+  inputs / no knowable ports each get a reason, not a guess. Test name
+  carries provenance: "regression: <node> failed — <error≤80ch>".
+- **`draft_test` builtin** — in runBuiltin + Plant's catalog, so graphs can
+  convert their own failures (inbox/heartbeat will want this).
+- **`draft_test.ts` CLI** — prints the draft for review; `--add` appends to
+  the graph file's tests array; the gate enforces it on the next save_graph.
+- Live-confirmed on drill E's dead-URL trace: one command turned the
+  morning's failure receipt into a regression test appended to the graph.
+  A gate-save now would RUN that test, fail (URL still dead), and refuse
+  the version — the lesson is enforced, not just remembered.
+
+The library now compounds lessons, not just skills. Next in queue: the
+inbox_sweep heartbeat (the plans pillar).
+
 ## Expectation ops ✓ (2026-06-11, post-flip) — valid≠correct gets teeth
 
 First post-flip item from the queue. `GraphExpectation` gains three shape

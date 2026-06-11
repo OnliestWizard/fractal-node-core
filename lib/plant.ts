@@ -119,6 +119,12 @@ const BUILTIN_CATALOG = [
     outputs: [{ id: 'passed', type: 'boolean' }, { id: 'summary', type: 'string' }, { id: 'results', type: 'object' }],
   },
   {
+    id: 'draft_test',
+    description: 'Convert a FAILED execution trace into a draft contract test — the failure-becomes-a-test loop. Takes a trace object (with events and inputs) and optionally the graph that produced it; returns { drafted, test, reason }. The drafted test replays the failing inputs and requires every $output port to exist; pass expectError=true instead to lock in a failure as correct behavior (e.g. input validation). Append the drafted test to the graph\'s "tests" array so save_graph enforces the lesson.',
+    inputs:  [{ id: 'trace', type: 'object' }, { id: 'graph', type: 'object', optional: true }, { id: 'expectError', type: 'boolean', optional: true }],
+    outputs: [{ id: 'drafted', type: 'boolean' }, { id: 'test', type: 'object' }, { id: 'reason', type: 'string' }],
+  },
+  {
     id: 'load_graph',
     description: 'Load a previously saved graph from the graph library by name. Returns the graph object and a found flag. Pass the graph to execute_graph to run it. Optional version input loads a specific historical version (version id or content hash).',
     inputs:  [{ id: 'name', type: 'string' }, { id: 'version', type: 'string', optional: true }],
