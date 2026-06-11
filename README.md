@@ -80,8 +80,11 @@ real commits to it, deliberately) and two fine-grained PATs — read-wide,
 write-narrow. `.env.example` walks through it.
 
 There's also an execution server (`npm run server`: validate / execute with
-SSE streaming / plant / replay) and a visual editor (`cd editor && npm run
-dev`) that renders graphs on a canvas and animates runs live.
+SSE streaming / plant / replay). A visual editor lives in `editor/` (canvas
+rendering, live run animation) but is **experimental and unmaintained** —
+in practice the dashboard is the repo itself: committed trace receipts and
+a regenerated `STATUS.md`. The graphs' author is the LLM; humans review
+receipts, not canvases.
 
 ## How it works
 

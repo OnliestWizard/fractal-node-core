@@ -88,7 +88,7 @@ property. The idea-novelty window is closing; ship.**
 | Call | Status |
 |---|---|
 | Go-public checklist (README, license, config, sweep, history) | ✓ complete |
-| The visibility flip | ○ pending — user's gut: pre-flight gauntlet first (fresh-clone test, failure drills, editor verdict, cost honesty). Fair: every demo's first run found a real bug. |
+| The visibility flip | ◐ gauntlet COMPLETE 2026-06-11: fresh-clone ✓ (fixes shipped), failure drills ✓ (CLI errors humanized), cost honesty ✓ ($2.05 lifetime, token meter built), editor verdict ✓ (demoted to experimental — the dashboard is the repo). Remaining: the screenshot history-scrub decision, then the flip is the button. |
 
 *Addendum 2026-06-11:* Raindrop 2.0 ("self-healing agents", YC, $15M) ships
 failure→eval conversion — the contract thesis arriving outside-in from the
