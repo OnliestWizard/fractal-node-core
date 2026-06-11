@@ -128,6 +128,14 @@ nearly free.
 
 Solo project, moving fast. Things to know before you rely on it:
 
+- **What it costs:** total LLM spend building *everything* in this repo —
+  every Plant pass, judge loop, demo run, and the system's own
+  self-improvement loops — is **$2.05** (884k tokens, 332 requests; OpenAI
+  dashboard, 2026-06-11). A full demo run is a few cents. Compile-time
+  reasoning is the only expensive part, and it happens once; saved graphs
+  re-execute without LLM calls unless they contain LLM nodes. One honest
+  caveat: contract tests on LLM-bearing skills run those nodes for real, so
+  gated saves cost a few cents each.
 - `run_js` executes LLM-generated code in a Node `vm` context — that is a
   convenience, **not a security boundary**. Don't run untrusted graphs.
 - Plant currently speaks OpenAI (gpt-4o family); the engine itself is

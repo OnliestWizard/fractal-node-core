@@ -1,5 +1,17 @@
 # Session State — fractal-node-core
 
+## Gauntlet 3/4: cost honesty ✓ (2026-06-11)
+
+Better than the planned per-demo meter: the user pulled the project-lifetime
+totals from the OpenAI dashboard — **$2.05, 884k tokens, 332 requests** for
+EVERYTHING built since 06-07 (all Plant passes, judge loops, demos,
+self-improvement runs, the 7-skill library). ~$0.006/request. Added to the
+README honest-status section with the caveat that gated saves of LLM-bearing
+skills re-run those nodes (a few cents per save). This is probability001's
+compile-once economics confirmed with a receipt. Per-demo usage meter
+shelved — the aggregate answers the stranger's real question better.
+Gauntlet remaining: editor verdict; screenshot scrub decision before flip.
+
 ## Gauntlet 2/4: failure drills ✓ + fixes (2026-06-11)
 
 Broke things on purpose and graded what a stranger sees. Verdict pattern:
