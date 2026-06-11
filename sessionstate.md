@@ -1,5 +1,33 @@
 # Session State — fractal-node-core
 
+## Heartbeat 3/n: inbox_sweep ✓ (2026-06-11) — first beat ran dry
+
+`lib/inbox-sweep.ts` + `sweep.ts` CLI. Architecture line drawn deliberately:
+the INTELLIGENCE lives in gated graphs (issue_handler); the sweep is
+deterministic TS rails around it — owner filter is code-not-prompt, labels
+are an at-most-once state machine (plant:in-progress BEFORE work → crash
+strands rather than double-delivers; delivered/needs-human after; non-plant
+labels preserved on relabel), per-sweep budget enforced via the token meter
+(default $0.25, checked before each issue), maxIssues cap (default 3),
+`SWEEP_ALLOWED_TOOLS` allowlist (skills + text builtins + playground__*
+ONLY — no plant, no save_graph, no github__*, no filesystem). Failed
+deliveries leave a full receipt: needs-human label + error comment +
+draft_test regression test from the failure trace, and never retry.
+
+10 unit tests w/ fake pool + literal-stub handlers (no LLM, no network):
+filters, cap, budget, label ordering, label preservation, failure path.
+Bonus finding: the failure test's http_fetch stub was blocked by the
+allowlist before reaching the network — the test now asserts the rail
+itself. 287 tests (27 files), typecheck clean.
+
+**First live beat (dry): 5 scanned, 3 handled (#5 code_request, #4
+proposal, #3 other), 2 skipped-cap, <$0.01, zero writes.**
+
+Remaining for the full heartbeat: one controlled LIVE delivery (file a
+fresh test issue; verify labels in GitHub UI — update_issue label
+auto-create still unverified), then pulse.ts (chained setTimeout, --once /
+--interval / --budget flags, STATUS heartbeat line).
+
 ## Heartbeat 2/n: issue_handler ✓ + two text builtins (2026-06-11)
 
 **New builtins** (the string ops the library kept tripping on): `template`
