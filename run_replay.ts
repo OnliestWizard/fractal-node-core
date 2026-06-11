@@ -1,4 +1,4 @@
-import { readFileSync } from 'fs'
+import { existsSync, readFileSync } from 'fs'
 import { replayTrace } from './lib/replay'
 import type { NodeEvent } from './lib/execute-engine'
 
@@ -22,6 +22,11 @@ async function main() {
     process.exit(1)
   }
 
+  if (!existsSync(args.trace)) {
+    console.error(`Trace file not found: ${args.trace}`)
+    console.error('Record one first: npx tsx run_execute.ts --graph graph.json --inputs-file inputs.json --out trace.json')
+    process.exit(1)
+  }
   const trace = JSON.parse(readFileSync(args.trace, 'utf8')) as {
     graph?: string
     inputs?: Record<string, unknown>
@@ -52,4 +57,7 @@ async function main() {
   }
 }
 
-main().catch(err => { console.error(err); process.exit(1) })
+main().catch(err => {
+  console.error(`\n${err instanceof Error ? err.message : err}`)
+  process.exit(1)
+})

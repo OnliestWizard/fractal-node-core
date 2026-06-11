@@ -16,6 +16,12 @@ async function main() {
     process.exit(1)
   }
 
+  // Fail before spawning catalog servers, not after
+  if (!process.env.OPENAI_API_KEY) {
+    console.error('OPENAI_API_KEY is not set. Copy .env.example to .env.local and fill it in.')
+    process.exit(1)
+  }
+
   const graph = await plantGraph(task)
 
   console.log('\n── generated graph ' + '─'.repeat(50))
@@ -33,4 +39,7 @@ async function main() {
   }
 }
 
-main().catch(err => { console.error(err); process.exit(1) })
+main().catch(err => {
+  console.error(`\n${err instanceof Error ? err.message : err}`)
+  process.exit(1)
+})

@@ -1,5 +1,32 @@
 # Session State — fractal-node-core
 
+## Gauntlet 2/4: failure drills ✓ + fixes (2026-06-11)
+
+Broke things on purpose and graded what a stranger sees. Verdict pattern:
+**node-level failure was already on-brand** (drill: graph with dead URL →
+✗ http_fetch with reason, dependents skipped with "missing: prompt", trace
+still written — exactly the receipts story); **process-level failure was
+raw stack dumps everywhere**. Fixed all four CLI runners:
+
+- run_plant: missing OPENAI_API_KEY now fails BEFORE spawning catalog
+  servers ("Copy .env.example to .env.local"); all errors print
+  message-only (invalid key → the 401 line, no stack).
+- run_execute: malformed graph/inputs JSON → "X is not valid JSON (path):
+  parse error" via readJson helper; message-only catch.
+- run_replay + render_trace: missing trace file → friendly + how to record
+  one; message-only catch.
+- generate_status: message-only catch + credentials hint ("Check
+  GITHUB_PAT_WRITE…") when the error smells like auth. Drilled live with an
+  invalid PAT: "MCP error -32603: Authentication Failed: Bad credentials"
+  + hint. (Bad-PAT pushes fail safely — local STATUS.md regenerated after.)
+
+Demos keep full error dumps on purpose (owner-run debugging surface).
+Drill gotchas: PS 5.1 `$env:VAR = ''` DELETES the var (dotenv then loads
+the real value — first missing-key drill silently succeeded and spent one
+plant call); test missing-env by running from a cwd without .env.local.
+249 tests + typecheck green. Gauntlet remaining: editor verdict, cost
+honesty, screenshot scrub decision.
+
 ## Gauntlet 1/4: fresh-clone test ✓ + fixes (2026-06-11)
 
 Ran the pre-flight gauntlet's first item in a temp clone from GitHub.

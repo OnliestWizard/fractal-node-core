@@ -6,7 +6,7 @@
 // Default output path is the trace path with .json → .md, ready to commit
 // next to the delivery it documents.
 
-import { readFileSync, writeFileSync } from 'fs'
+import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { basename } from 'path'
 import { renderTraceMarkdown, type TraceFile } from './lib/trace-markdown'
 
@@ -29,6 +29,10 @@ function main() {
     process.exit(1)
   }
 
+  if (!existsSync(args.trace)) {
+    console.error(`Trace file not found: ${args.trace}`)
+    process.exit(1)
+  }
   const trace = JSON.parse(readFileSync(args.trace, 'utf8')) as TraceFile
   const outPath = args.out ?? args.trace.replace(/\.json$/i, '.md')
 
@@ -42,4 +46,9 @@ function main() {
   console.log(`rendered ${args.trace} (${events} events) → ${outPath}`)
 }
 
-main()
+try {
+  main()
+} catch (err) {
+  console.error(`\n${err instanceof Error ? err.message : err}`)
+  process.exit(1)
+}

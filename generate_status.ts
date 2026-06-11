@@ -95,4 +95,11 @@ async function main() {
   }
 }
 
-main().catch(err => { console.error(err); process.exit(1) })
+main().catch(err => {
+  const msg = err instanceof Error ? err.message : String(err)
+  console.error(`\n${msg}`)
+  if (/credentials|401|unauthorized/i.test(msg)) {
+    console.error('Check GITHUB_PAT_WRITE in .env.local — the playground push needs a write-scoped token.')
+  }
+  process.exit(1)
+})

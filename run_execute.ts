@@ -6,6 +6,15 @@ import { McpPool } from './lib/mcp-pool'
 import { executeSubgraph } from './lib/execute-engine'
 import type { SerializedGraph } from './core/serializer'
 
+function readJson<T>(path: string, what: string): T {
+  try {
+    return JSON.parse(readFileSync(path, 'utf8')) as T
+  } catch (err) {
+    console.error(`${what} is not valid JSON (${path}): ${err instanceof Error ? err.message : err}`)
+    process.exit(1)
+  }
+}
+
 function parseArgs(argv: string[]) {
   const out: Record<string, string> = {}
   for (let i = 0; i < argv.length; i++) {
@@ -34,7 +43,7 @@ async function main() {
     console.error('Design one first: npx tsx run_plant.ts "describe the task" --out graph.json')
     process.exit(1)
   }
-  const graph: SerializedGraph = JSON.parse(readFileSync(args.graph, 'utf8'))
+  const graph = readJson<SerializedGraph>(args.graph, 'Graph file')
 
   if (args['inputs-file'] && !existsSync(args['inputs-file'])) {
     const ports = graph.nodes.find(n => n.id === '$input')?.outputs ?? []
@@ -44,7 +53,7 @@ async function main() {
     process.exit(1)
   }
   const userInputs: Record<string, unknown> = args['inputs-file']
-    ? JSON.parse(readFileSync(args['inputs-file'], 'utf8'))
+    ? readJson(args['inputs-file'], 'Inputs file')
     : args.inputs ? JSON.parse(args.inputs) : {}
 
   const pool = new McpPool()
@@ -63,4 +72,7 @@ async function main() {
   }
 }
 
-main().catch(err => { console.error(err); process.exit(1) })
+main().catch(err => {
+  console.error(`\n${err instanceof Error ? err.message : err}`)
+  process.exit(1)
+})
