@@ -1,6 +1,6 @@
 # The Probability Series — Master Doc
 
-Seven strategy essays written *while the system was being built* — most within
+Eight strategy essays written *while the system was being built* — most within
 hours of the work they describe, none revised after the fact. They are kept
 as snapshots, wrong turns included, because the series' own conclusion
 (006) demands it: the derivation is the product. This doc is the index, the
@@ -26,7 +26,11 @@ its receipts intact. 006 (unfinished) names what the receipts were always
 for: not rollback — meaning. *Context without provenance is data; context
 with provenance is meaning.* 007 names the architecture all of it implies:
 agents are transient executors, the repository is the persistent cognitive
-substrate — the minds are visitors, the repo is the resident.
+substrate — the minds are visitors, the repo is the resident. 008 re-runs
+004's field sweep two days later: a third of a billion dollars converging
+in pieces, governance now the crowded quadrant, the substrate thesis with
+a commercial shadow (hosted, not git-native) — and still nobody with the
+combination.
 
 ---
 
@@ -143,6 +147,23 @@ nothing was lost that had been committed.
 | Plans is the weakest pillar — first rung (inbox_sweep) starts fixing it | ○ designed, not built |
 | Retrieval becomes the binding constraint (~skill 30) | ○ watch — library at 7 |
 | Lineage queryability (runtime-id gap) is the same problem | ○ open since 003 |
+
+## 008 — The Second Sweep (2026-06-11)
+
+**Thesis:** the convergence accelerated — Willow/Offroad/Aigentsphere/
+Coralogix in the go-public window alone; ~$350M this quarter for pieces of
+the combination. Three new findings: governance flipped from tailwind to
+gold rush (differentiator = structural, not bolted); the substrate thesis
+has a commercial shadow (Cosmos — hosted platform vs git repo; "the exit
+is git clone"); the skills marketplace arrived with 26.1% of skills
+vulnerable — contract-gated skills are the market answer. Unchanged:
+nobody has the combination, nobody is zero-server.
+
+| Call | Status |
+|---|---|
+| Actions pulse + stale-claim reaper first | ✓ built same night |
+| Distribution artifacts rise in priority (recording, receipts, viewer) | ○ queued |
+| Skill provenance as the marketplace answer | ○ queued |
 
 ---
 

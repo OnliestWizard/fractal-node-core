@@ -31,12 +31,14 @@ export interface SweepOptions {
   maxIssues?: number
   /** LLM budget per sweep in USD (default 0.25); checked before each issue. */
   budgetUsd?: number
+  /** An in-progress claim older than this is reaped to needs-human (default 60). */
+  staleMinutes?: number
 }
 
 export interface SweepItem {
   number: number
   title: string
-  action: 'handled' | 'failed' | 'skipped-stranger' | 'skipped-labeled' | 'skipped-cap' | 'skipped-budget'
+  action: 'handled' | 'failed' | 'reaped' | 'skipped-stranger' | 'skipped-labeled' | 'skipped-cap' | 'skipped-budget'
   category?: string
   result?: string
   error?: string
@@ -56,6 +58,7 @@ interface IssueRecord {
   body: string | null
   user: { login: string }
   labels?: Array<string | { name?: string }>
+  updated_at?: string
 }
 
 const labelNames = (issue: IssueRecord): string[] =>
@@ -97,6 +100,25 @@ export async function sweepInbox(
       continue
     }
     if (labelNames(issue).some(l => PLANT_LABELS.includes(l))) {
+      // a claim left in-progress is a crashed or interrupted sweep — never
+      // auto-retried (at-most-once), but reaped to a human once it's stale
+      const ageMs = Date.now() - Date.parse(issue.updated_at ?? '')
+      const stale = labelNames(issue).includes('plant:in-progress')
+        && Number.isFinite(ageMs) && ageMs > (opts.staleMinutes ?? 60) * 60_000
+      if (stale && !dryRun) {
+        try {
+          await setPlantLabel(pool, owner, repo, issue, 'plant:needs-human')
+          await pool.callTool('playground', 'add_issue_comment', {
+            owner, repo, issue_number: issue.number,
+            body: 'This issue was claimed by a sweep that never finished — likely an interrupted run. ' +
+              'Flagged for a human; the sweep will not retry a side-effectful delivery.',
+          })
+          items.push({ ...base, action: 'reaped' })
+        } catch (err) {
+          items.push({ ...base, action: 'skipped-labeled', error: err instanceof Error ? err.message : String(err) })
+        }
+        continue
+      }
       items.push({ ...base, action: 'skipped-labeled' })
       continue
     }

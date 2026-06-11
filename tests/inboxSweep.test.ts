@@ -41,8 +41,9 @@ const failingHandler: SerializedGraph = {
   ],
 }
 
-const issue = (number: number, login: string, labels: string[] = []) => ({
+const issue = (number: number, login: string, labels: string[] = [], updatedAt?: string) => ({
   number, title: `Issue ${number}`, body: 'body', user: { login }, labels: labels.map(name => ({ name })),
+  updated_at: updatedAt ?? new Date().toISOString(),
 })
 
 const OPTS = { owner: 'kadie', repo: 'sandbox' }
@@ -139,6 +140,54 @@ describe('sweepInbox live label state machine', () => {
     expect(comment).toBeDefined()
     expect(String(comment!.args.body)).toContain('could not deliver')
     expect(String(comment!.args.body)).toContain('Drafted regression test')
+  })
+})
+
+describe('stale claim reaper', () => {
+  const twoHoursAgo = new Date(Date.now() - 2 * 3_600_000).toISOString()
+
+  it('reaps a stale in-progress claim to needs-human with a comment', async () => {
+    const calls: Call[] = []
+    const pool = fakePool([issue(20, 'kadie', ['plant:in-progress'], twoHoursAgo)], calls)
+    const report = await sweepInbox(pool, stubHandler('proposal'), { ...OPTS, dryRun: false })
+
+    expect(report.items[0].action).toBe('reaped')
+    const label = calls.find(c => c.tool === 'update_issue')
+    expect(label!.args.labels).toEqual(['plant:needs-human'])
+    const comment = calls.find(c => c.tool === 'add_issue_comment')
+    expect(String(comment!.args.body)).toContain('never finished')
+  })
+
+  it('leaves a fresh in-progress claim alone', async () => {
+    const calls: Call[] = []
+    const pool = fakePool([issue(21, 'kadie', ['plant:in-progress'])], calls)
+    const report = await sweepInbox(pool, stubHandler('proposal'), { ...OPTS, dryRun: false })
+
+    expect(report.items[0].action).toBe('skipped-labeled')
+    expect(calls.map(c => c.tool)).toEqual(['list_issues'])
+  })
+
+  it('never reaps in dry-run mode', async () => {
+    const calls: Call[] = []
+    const pool = fakePool([issue(22, 'kadie', ['plant:in-progress'], twoHoursAgo)], calls)
+    const report = await sweepInbox(pool, stubHandler('proposal'), { ...OPTS, dryRun: true })
+
+    expect(report.items[0].action).toBe('skipped-labeled')
+    expect(calls.map(c => c.tool)).toEqual(['list_issues'])
+  })
+
+  it('does not reap terminal labels regardless of age', async () => {
+    const pool = fakePool([issue(23, 'kadie', ['plant:delivered'], twoHoursAgo)], [])
+    const report = await sweepInbox(pool, stubHandler('proposal'), { ...OPTS, dryRun: false })
+    expect(report.items[0].action).toBe('skipped-labeled')
+  })
+
+  it('honors a custom staleMinutes', async () => {
+    const tenMinAgo = new Date(Date.now() - 10 * 60_000).toISOString()
+    const calls: Call[] = []
+    const pool = fakePool([issue(24, 'kadie', ['plant:in-progress'], tenMinAgo)], calls)
+    const report = await sweepInbox(pool, stubHandler('proposal'), { ...OPTS, dryRun: false, staleMinutes: 5 })
+    expect(report.items[0].action).toBe('reaped')
   })
 })
 

@@ -1,0 +1,63 @@
+# The heartbeat on GitHub's compute — one live pulse beat on a schedule,
+# laptop not required. The substrate runs inside its own medium.
+#
+# Required repository secrets (Settings → Secrets and variables → Actions):
+#   OPENAI_API_KEY      — for triage / judge / writer calls
+#   GITHUB_PAT_WRITE    — fine-grained PAT scoped to the playground repo
+# Required repository variables:
+#   PLAYGROUND_OWNER    — e.g. OnliestWizard
+#   PLAYGROUND_REPO     — e.g. Plant_Playground
+#
+# Safety posture is the sweep's own: owner-authored issues only, plant:*
+# label state machine (at-most-once), per-beat budget + issue cap, stale
+# claims reaped to needs-human, SWEEP_ALLOWED_TOOLS allowlist. The PAT can
+# only touch the sandbox.
+
+name: pulse
+
+on:
+  schedule:
+    - cron: '*/30 * * * *' # every 30 minutes; scheduled beats run dry=false below
+  workflow_dispatch:
+    inputs:
+      live:
+        description: 'Deliver for real (false = triage-only dry run)'
+        type: boolean
+        default: false
+      max_issues:
+        description: 'Issues handled this beat'
+        default: '2'
+
+# one beat at a time, ever — a slow beat must finish before the next starts
+concurrency:
+  group: pulse
+  cancel-in-progress: false
+
+jobs:
+  beat:
+    # forks get the workflow file, not the heartbeat; and no red-X spam
+    # before the repo variables/secrets are configured
+    if: github.repository == 'OnliestWizard/fractal-node-core' && vars.PLAYGROUND_OWNER != ''
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - run: npm ci
+
+      - name: pulse beat
+        env:
+          OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
+          GITHUB_PAT_WRITE: ${{ secrets.GITHUB_PAT_WRITE }}
+          PLAYGROUND_OWNER: ${{ vars.PLAYGROUND_OWNER }}
+          PLAYGROUND_REPO: ${{ vars.PLAYGROUND_REPO }}
+        run: >
+          npx tsx pulse.ts --once
+          ${{ (github.event_name == 'schedule' || inputs.live) && '--live' || '' }}
+          --max-issues ${{ inputs.max_issues || '2' }}
+          --budget 0.25

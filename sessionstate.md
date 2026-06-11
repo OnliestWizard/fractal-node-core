@@ -1,5 +1,34 @@
 # Session State — fractal-node-core
 
+## 008 + Actions pulse + reaper ✓ (2026-06-11, the day's last act)
+
+**probability008.md "The Second Sweep"** — 004's field survey re-run after
+going public: Willow/Offroad/Aigentsphere/Coralogix in the window, ~$350M
+this quarter for pieces of the combination. Three new findings: governance
+is now the crowded quadrant (structural-vs-bolted is the differentiator);
+Cosmos (Augment, May) is the substrate thesis as a hosted platform — "the
+exit is git clone" is our fork; skills marketplace (Agensi) arrived with
+26.1% of skills vulnerable — contract-gated skills are the market answer.
+PROBABILITY.md index updated (eight essays).
+
+**Stale-claim reaper** (lib/inbox-sweep.ts): plant:in-progress older than
+staleMinutes (default 60, via updated_at) → relabeled needs-human + "never
+finished" comment, action 'reaped'. Live mode only; terminal labels never
+reaped; missing/invalid updated_at = treated fresh. 5 new tests (292
+total, 27 files).
+
+**.github/workflows/pulse.yml** — the heartbeat on GitHub's compute: cron
+*/30 runs `pulse.ts --once --live --max-issues 2 --budget 0.25`;
+workflow_dispatch with live/max_issues inputs (manual default = dry);
+concurrency group 'pulse' (no overlapping beats, ever); fork guard +
+unconfigured guard (job skips until vars.PLAYGROUND_OWNER set — no red-X
+spam). **USER ACTION NEEDED to activate**: add repo secrets
+OPENAI_API_KEY + GITHUB_PAT_WRITE, repo variables PLAYGROUND_OWNER +
+PLAYGROUND_REPO (Settings → Secrets and variables → Actions). First
+verification: run the workflow manually (dry) from the Actions tab, then
+flip to scheduled live. Laptop then optional — 007's thesis completed in
+infrastructure.
+
 ## The queue is worked ✓ (2026-06-11) — pulse beat delivered #5 and #4
 
 `npx tsx pulse.ts --once --live --max-issues 2`: ONE beat delivered both
