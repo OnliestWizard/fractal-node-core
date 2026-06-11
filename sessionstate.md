@@ -1,5 +1,25 @@
 # Session State — fractal-node-core
 
+## Heartbeat 1/n: issue_triage skill ✓ (2026-06-11)
+
+First piece of the inbox sweep, built the house way: Plant designed the
+classifier pass 1/5 from one sentence ($input(issue) → literal system
+prompt → draft_writer → $output(category)); gated with THREE contract
+tests using the new `matches` op (`^code_request\s*$` etc.) — each gate
+probe is a real classifier call, and the model returned exactly one word
+all three times. Library = 8 skills, version 83f84212, $0.03 total.
+
+**Live dry-run against the real queue: 5/5 correct** — #5 code_request,
+#4 proposal, #1–3 other (the plumbing announcements), all owner-authored,
+<$0.01. Engine check confirmed before building: runForEach calls
+executeSubgraph with throwOnError=false → per-item error isolation holds,
+so a failing issue can't kill a sweep.
+
+Scratch scripts (gitignored): plant_triage.ts, triage_live_check.ts.
+Next: issue_handler (triage → router → code_smith/inbox_worker/needs-human,
+dryRun input), then inbox_sweep, labels, pulse — design in the 2026-06-11
+conversation + this file's earlier entries.
+
 ## The Raindrop steal ✓ (2026-06-11) — failed traces become contract tests
 
 probability004's queued feature, built in three layers. 271 tests (25

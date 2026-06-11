@@ -1,0 +1,128 @@
+{
+  "nodes": [
+    {
+      "id": "$input",
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "issue",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "system_prompt",
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "value",
+          "type": "string"
+        }
+      ],
+      "constraints": {
+        "literal": "You are an issue triage classifier. The user message is a GitHub issue (title and body). Respond with ONLY one of these words and nothing else:\ncode_request — the issue requests an implementation and contains a fenced json block with a \"tests\" array\nproposal — the issue proposes a feature, design, or change to be prototyped\nother — anything else (questions, announcements, greetings)"
+      }
+    },
+    {
+      "id": "draft_writer",
+      "inputs": [
+        {
+          "id": "prompt",
+          "type": "string"
+        },
+        {
+          "id": "system",
+          "type": "string"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "response",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "$output",
+      "inputs": [
+        {
+          "id": "category",
+          "type": "string"
+        }
+      ],
+      "outputs": []
+    }
+  ],
+  "edges": [
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "issue"
+      },
+      "to": {
+        "nodeId": "draft_writer",
+        "portId": "prompt"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "system_prompt",
+        "portId": "value"
+      },
+      "to": {
+        "nodeId": "draft_writer",
+        "portId": "system"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "draft_writer",
+        "portId": "response"
+      },
+      "to": {
+        "nodeId": "$output",
+        "portId": "category"
+      }
+    }
+  ],
+  "description": "Classify a GitHub issue (title + body as one string) for the inbox sweep. Returns category: code_request | proposal | other.",
+  "tests": [
+    {
+      "name": "spec with tests array → code_request",
+      "inputs": {
+        "issue": "TITLE: Code request: slugify(str)\n\nBODY: Requesting a tested implementation.\n\n```json\n{ \"problem\": \"Write slugify(str)\", \"tests\": [{ \"args\": [\"A B\"], \"expected\": \"a-b\" }] }\n```"
+      },
+      "expect": [
+        {
+          "port": "category",
+          "matches": "^code_request\\s*$"
+        }
+      ]
+    },
+    {
+      "name": "design proposal → proposal",
+      "inputs": {
+        "issue": "TITLE: Proposal: per-node contract tests\n\nBODY: I propose extending graph CI so each node can carry its own contractTestId, validated at save time."
+      },
+      "expect": [
+        {
+          "port": "category",
+          "matches": "^proposal\\s*$"
+        }
+      ]
+    },
+    {
+      "name": "greeting → other",
+      "inputs": {
+        "issue": "TITLE: hello\n\nBODY: Just saying hi, very cool project!"
+      },
+      "expect": [
+        {
+          "port": "category",
+          "matches": "^other\\s*$"
+        }
+      ]
+    }
+  ],
+  "specVersion": "1"
+}
