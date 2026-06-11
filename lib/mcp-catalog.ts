@@ -1,6 +1,7 @@
 import { Client } from '@modelcontextprotocol/sdk/client/index.js'
 import { StdioClientTransport } from '@modelcontextprotocol/sdk/client/stdio.js'
 import { readFileSync } from 'fs'
+import type { McpPool } from './mcp-pool'
 
 interface McpServerConfig {
   name: string
@@ -20,7 +21,19 @@ export interface CatalogNode {
   outputs: { id: string; type: string; optional?: true }[]
 }
 
-export async function loadMcpCatalog(configPath = 'mcp.json'): Promise<CatalogNode[]> {
+// With a pool, tool lists come from its (lazily connected) clients — no extra
+// child processes. Without one, each server is spawned transiently in turn.
+export async function loadMcpCatalog(configPath = 'mcp.json', pool?: McpPool): Promise<CatalogNode[]> {
+  if (pool) {
+    const tools = await pool.listTools()
+    return tools.map(t => ({
+      id: t.id,
+      description: t.description || t.id,
+      inputs:  [{ id: 'params', type: 'object' }],
+      outputs: [{ id: 'result', type: 'any' }],
+    }))
+  }
+
   let config: McpConfig
   try {
     config = JSON.parse(readFileSync(configPath, 'utf8'))

@@ -114,6 +114,6 @@ describe('renderStatusMarkdown', () => {
   it('says so when the library is empty', () => {
     const md = renderStatusMarkdown({ skills: [], recentSaves: [] }, { generatedAt })
     expect(md).toContain('*library is empty*')
-    expect(md).toContain('*no versions recorded*')
+    expect(md).toContain('*no version history on this machine yet')
   })
 })

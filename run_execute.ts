@@ -1,7 +1,7 @@
 import { config } from 'dotenv'
 config({ path: '.env.local' })
 
-import { readFileSync, writeFileSync } from 'fs'
+import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { McpPool } from './lib/mcp-pool'
 import { executeSubgraph } from './lib/execute-engine'
 import type { SerializedGraph } from './core/serializer'
@@ -29,7 +29,20 @@ async function main() {
     ? args['allowed-tools'].split(',').map(t => t.trim()).filter(Boolean)
     : undefined
 
+  if (!existsSync(args.graph)) {
+    console.error(`Graph file not found: ${args.graph}`)
+    console.error('Design one first: npx tsx run_plant.ts "describe the task" --out graph.json')
+    process.exit(1)
+  }
   const graph: SerializedGraph = JSON.parse(readFileSync(args.graph, 'utf8'))
+
+  if (args['inputs-file'] && !existsSync(args['inputs-file'])) {
+    const ports = graph.nodes.find(n => n.id === '$input')?.outputs ?? []
+    console.error(`Inputs file not found: ${args['inputs-file']}`)
+    console.error(`Create it as JSON supplying the graph's input ports${
+      ports.length ? `, e.g.:\n  { ${ports.map(p => `"${p.id}": <${p.type}>`).join(', ')} }` : '.'}`)
+    process.exit(1)
+  }
   const userInputs: Record<string, unknown> = args['inputs-file']
     ? JSON.parse(readFileSync(args['inputs-file'], 'utf8'))
     : args.inputs ? JSON.parse(args.inputs) : {}

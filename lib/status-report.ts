@@ -93,7 +93,7 @@ export function renderStatusMarkdown(report: StatusReport, opts: StatusRenderOpt
 
   lines.push('', '## Recent saves', '')
   if (report.recentSaves.length === 0) {
-    lines.push('*no versions recorded*')
+    lines.push('*no version history on this machine yet — entries appear as `save_graph` runs*')
   } else {
     for (const { skill, version } of report.recentSaves) {
       lines.push(`- ${minute(version.timestamp)} — \`${skill}\` @ \`${version.hash}\``)

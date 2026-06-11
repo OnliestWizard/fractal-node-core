@@ -1,5 +1,40 @@
 # Session State — fractal-node-core
 
+## Gauntlet 1/4: fresh-clone test ✓ + fixes (2026-06-11)
+
+Ran the pre-flight gauntlet's first item in a temp clone from GitHub.
+**Stage 1 (zero env vars): PASS** — install 2m/0 vulns, typecheck clean,
+249/249 green; the README's "no API keys needed" claim is true. **Stage 2
+(only OPENAI_API_KEY): PASS** — plant→execute→replay→render_trace→
+generate_status all worked (Plant designed url→http_fetch→draft_writer
+pass 1, live Wikipedia fetch + summary). Temp clone deleted after (it held
+a key copy).
+
+Findings → fixes shipped:
+- **README quickstart failed followed literally** — `inputs.json` never
+  explained, reward was a raw ENOENT stack. Fixed both ends: README now
+  shows the inputs file (and that keys = the graph's $input ports);
+  run_execute.ts prints friendly errors for missing graph file and missing
+  inputs file — the latter lists the loaded graph's actual $input ports
+  with types. Both paths exercised live.
+- **Fresh STATUS.md looked dead** (graphs/.versions/ is gitignored → "0
+  recent saves", no heartbeat). Wording now: "no version history on this
+  machine yet — entries appear as save_graph runs".
+- **README test count stale again** → "240+ tests" (stops drifting).
+- **mcp-catalog pool reuse** — the second mcp.json reader spawned every
+  server transiently on each plant call even when the engine already had a
+  connected pool. `loadMcpCatalog(path, pool?)` now takes an optional pool
+  (uses its lazily-connected clients, zero extra children); threaded through
+  buildSystem/buildCatalogSection/plantGraphTracked/plantGraph; the engine's
+  `plant` and `plant_with_prompt` nodes pass their pool. CLI/demo callers
+  unchanged (transient spawn still the no-pool fallback).
+
+Still open from the fresh-clone run: **the screenshot JPG ships in every
+clone** (photo of the desktop, 1.1MB, in history since `mango`) — needs a
+filter-repo decision BEFORE the visibility flip, same procedure as the
+2026-06-10 photo purge. Gauntlet remaining: failure drills, editor verdict,
+cost honesty.
+
 ## Lazy MCP pool ✓ (2026-06-11) — one child per server actually used
 
 The RAM-protection fix queued since the freezes. `McpPool.connect()` now only

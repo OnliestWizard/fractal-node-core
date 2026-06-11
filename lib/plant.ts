@@ -3,6 +3,7 @@ import { validateGraph } from '../core/validator'
 import type { ValidationError } from '../core/validator'
 import type { SerializedGraph } from '../core/serializer'
 import { loadMcpCatalog } from './mcp-catalog'
+import type { McpPool } from './mcp-pool'
 import { listGraphs, libraryCatalog } from './graph-store'
 
 let _client: OpenAI | undefined
@@ -338,8 +339,8 @@ export function buildLibrarySection(): string {
   return `\n\nGraph library — saved, versioned, contract-tested skills. PREFER COMPOSING THESE over rebuilding equivalent logic from leaf nodes. A library skill is used DIRECTLY AS A NODE: give the node the skill's name as its id (or set "builtin" to the skill name if you rename it), declare the inputs and outputs exactly as listed below, and wire them like any other node. (load_graph + execute_graph still work when you need a specific historical version.)\n${entryText}`
 }
 
-async function buildSystem(): Promise<string> {
-  const mcpNodes = await loadMcpCatalog()
+async function buildSystem(pool?: McpPool): Promise<string> {
+  const mcpNodes = await loadMcpCatalog('mcp.json', pool)
   const catalog = [...BUILTIN_CATALOG, ...mcpNodes]
 
   if (mcpNodes.length > 0)
@@ -356,8 +357,8 @@ async function buildSystem(): Promise<string> {
   return SYSTEM_TEMPLATE.replace('CATALOG_PLACEHOLDER', catalogText) + buildLibrarySection()
 }
 
-export async function buildCatalogSection(): Promise<string> {
-  const mcpNodes = await loadMcpCatalog()
+export async function buildCatalogSection(pool?: McpPool): Promise<string> {
+  const mcpNodes = await loadMcpCatalog('mcp.json', pool)
   const catalog = [...BUILTIN_CATALOG, ...mcpNodes]
   const catalogText = catalog.map(n =>
     `\n  id: "${n.id}"\n  description: ${n.description}\n  inputs:  ${JSON.stringify(n.inputs)}\n  outputs: ${JSON.stringify(n.outputs)}`
@@ -369,8 +370,9 @@ export async function plantGraphTracked(
   task: string,
   maxPasses = 5,
   systemOverride?: string,
+  pool?: McpPool,
 ): Promise<{ graph: SerializedGraph; passes: number }> {
-  const system = systemOverride ?? await buildSystem()
+  const system = systemOverride ?? await buildSystem(pool)
 
   const messages: OpenAI.Chat.ChatCompletionMessageParam[] = [
     { role: 'system', content: system },
@@ -411,7 +413,7 @@ export async function plantGraphTracked(
   throw new Error(`Failed to produce a valid graph in ${maxPasses} passes`)
 }
 
-export async function plantGraph(task: string, maxPasses = 5): Promise<SerializedGraph> {
-  const { graph } = await plantGraphTracked(task, maxPasses)
+export async function plantGraph(task: string, maxPasses = 5, pool?: McpPool): Promise<SerializedGraph> {
+  const { graph } = await plantGraphTracked(task, maxPasses, undefined, pool)
   return graph
 }

@@ -57,11 +57,14 @@ git clone https://github.com/OnliestWizard/fractal-node-core
 cd fractal-node-core && npm install
 cp .env.example .env.local   # then fill it in — see the comments there
 
-npm test            # 243 tests, no API keys needed
+npm test            # 240+ tests, no API keys needed
 npm run typecheck
 
-# design a graph from a sentence, then run it
+# design a graph from a sentence (needs OPENAI_API_KEY)
 npx tsx run_plant.ts "fetch a URL and summarize it" --out graph.json
+
+# create inputs.json supplying the graph's $input ports — for the task above:
+#   { "url": "https://en.wikipedia.org/wiki/Haiku" }
 npx tsx run_execute.ts --graph graph.json --inputs-file inputs.json --out trace.json
 
 # replay the trace at recorded pace, or render it as a markdown receipt

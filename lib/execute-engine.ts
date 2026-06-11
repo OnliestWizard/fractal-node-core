@@ -646,7 +646,7 @@ export async function executeSubgraph(
       } else if (dispatchId === 'plant') {
         assertToolAllowed('plant', perms)
         console.log(`${indent}  ✦ ${nodeId} — designing graph for: "${inputs.task}"`)
-        const planted = await plantGraph(String(inputs.task))
+        const planted = await plantGraph(String(inputs.task), 5, pool)
         planted.id ??= newGraphId()
         planted.parentGraphId = graphId
         outputs = { graph: planted }
@@ -659,7 +659,7 @@ export async function executeSubgraph(
         let passes = 0
         let valid = false
         try {
-          const catalogSection = await buildCatalogSection()
+          const catalogSection = await buildCatalogSection(pool)
           const fullSystem = candidateInstructions + '\n\n' + catalogSection
           const result = await plantGraphTracked(task, 5, fullSystem)
           passes = result.passes
