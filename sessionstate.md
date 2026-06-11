@@ -1,5 +1,28 @@
 # Session State — fractal-node-core
 
+## Lazy MCP pool ✓ (2026-06-11) — one child per server actually used
+
+The RAM-protection fix queued since the freezes. `McpPool.connect()` now only
+reads mcp.json into a config map; each server process spawns on the FIRST
+`callTool` that needs it (`clientFor` with a pending-promise map so parallel
+nodes don't double-spawn). `listTools()` (agent node path) still brings the
+whole pool up — agents genuinely need the full toolset. Failed spawns are NOT
+cached: npx cold starts can blow the 30s connect timeout once and succeed on
+retry, so the next call gets a fresh attempt — AND the timed-out transport is
+explicitly closed (a timed-out npx spawn otherwise comes up later and lingers
+as an orphan child; observed live, server banner printed twice). All callers
+unchanged (same connect/callTool/close API). 249 tests (23 files), typecheck
+clean — `tests/mcpPool.test.ts` covers lazy connect (no warn at connect with
+an unspawnable command), call-time failure surfacing, unknown server, retry
+not cached, empty listTools.
+
+Live verification, status push: first run hit the cold-start timeout on
+playground (deliveries fetch failed, push retried + succeeded — the retry
+design carrying its weight in its first hour); second run spawned exactly ONE
+server, connected first try, restored the 5-delivery section, and exercised
+the create_or_update_file UPDATE path (sha fetch) for the second time.
+Filesystem + github servers never spawned at all — that's the RAM win.
+
 ## Paper dashboard ✓ (2026-06-11) — trace receipts + STATUS.md, live
 
 Session opened recovering from a laptop freeze: last terminal output survived
