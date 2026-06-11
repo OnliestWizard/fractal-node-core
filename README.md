@@ -107,7 +107,7 @@ dev`) that renders graphs on a canvas and animates runs live.
   replay, contract-test runner, trace→markdown renderer, status report
 - `examples/` — runnable graph JSONs (routers, agents, meta-graphs, the
   self-improvement loop)
-- `PROBABILITY.md` — master index of the strategy series; `probability001-006.md`
+- `PROBABILITY.md` — master index of the strategy series; `probability001-007.md`
   are the essays themselves, written in real time as the system was built
 - `sessionstate.md` — the unedited build log
 

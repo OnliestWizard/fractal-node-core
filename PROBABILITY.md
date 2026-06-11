@@ -1,6 +1,6 @@
 # The Probability Series — Master Doc
 
-Six strategy essays written *while the system was being built* — most within
+Seven strategy essays written *while the system was being built* — most within
 hours of the work they describe, none revised after the fact. They are kept
 as snapshots, wrong turns included, because the series' own conclusion
 (006) demands it: the derivation is the product. This doc is the index, the
@@ -24,7 +24,9 @@ design: graphs become agents, agents become apps — the rungs are
 relationships, not rewrites, and the same versioned artifact climbs with
 its receipts intact. 006 (unfinished) names what the receipts were always
 for: not rollback — meaning. *Context without provenance is data; context
-with provenance is meaning.*
+with provenance is meaning.* 007 names the architecture all of it implies:
+agents are transient executors, the repository is the persistent cognitive
+substrate — the minds are visitors, the repo is the resident.
 
 ---
 
@@ -121,6 +123,24 @@ derivation, not just its conclusions.
 **Deliberately unfinished** — the open thought (training on derivations
 instead of conclusions; whether the trace-carrying IR sketches that) waits
 for slower, human-paced thinking. The gap is its own receipt.
+
+## 007 — Agents Are Visitors (2026-06-11)
+
+**Thesis:** the inversion under everything: agents are transient executors,
+the repository is the persistent cognitive substrate (memory, skills,
+plans, governance, history, operational state). The minds are
+interchangeable visitors; the repo is the resident. Consequences: model
+upgrades are free (the gate re-verifies the library under the new mind),
+executor plurality is already real, and the gate is what makes the store
+*cognitive* rather than archival — memory that refuses bad writes. Proven
+involuntarily by the laptop crash: the executor died mid-thought and
+nothing was lost that had been committed.
+
+| Call | Status |
+|---|---|
+| Plans is the weakest pillar — first rung (inbox_sweep) starts fixing it | ○ designed, not built |
+| Retrieval becomes the binding constraint (~skill 30) | ○ watch — library at 7 |
+| Lineage queryability (runtime-id gap) is the same problem | ○ open since 003 |
 
 ---
 
