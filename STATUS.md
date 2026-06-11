@@ -1,6 +1,6 @@
 # Plant — skill library status
 
-**7 skills · 23 saved versions · 5 contract tests** · regenerated 2026-06-11 08:44 UTC
+**7 skills · 24 saved versions · 5 contract tests** · regenerated 2026-06-11 16:11 UTC
 
 Every skill below passed its contract tests at save time — `save_graph` refuses a failing graph, so presence in this table is the evidence.
 
@@ -10,7 +10,7 @@ Every skill below passed its contract tests at save time — `save_graph` refuse
 |---|---|---|---|---|---|
 | `code_improve` | Write JavaScript code for a problem statement and iteratively improve it until run_js tests pass and a quality judge approves. Returns the final code. | `(problem, system, tests) → (code)` | 0 | 1 | 2026-06-10 |
 | `code_smith` | Write code for a problem with a judge loop, verify it against the given tests, commit it to the sandbox, and return the code with its test evidence. | `(problem, system, tests, path, message, branch) → (code, summary, allPassed, result)` | 1 | 1 | 2026-06-10 |
-| `haiku_writer` | Write a haiku about a topic. Returns the haiku text. | `(topic) → (haiku)` | 1 | 2 | 2026-06-10 |
+| `haiku_writer` | Write a haiku about a topic. Returns the haiku text. | `(topic) → (haiku)` | 1 | 3 | 2026-06-11 |
 | `inbox_worker` | Turn a design proposal into a prototype markdown document and commit it to the sandbox repo. | `(proposal, path, message, branch) → (result)` | 1 | 1 | 2026-06-10 |
 | `planted_child` | Write a haiku about a topic using draft_writer. | `(topic) → (haiku)` | 0 | 6 | 2026-06-10 |
 | `playground_writer` | Write (create or update) a file in the OnliestWizard/Plant_Playground GitHub repo, committing directly to the given branch. Returns the GitHub API result JSON. | `(path, content, message, branch) → (result)` | 1 | 11 | 2026-06-10 |
@@ -18,6 +18,7 @@ Every skill below passed its contract tests at save time — `save_graph` refuse
 
 ## Recent saves
 
+- 2026-06-11 16:06 — `haiku_writer` @ `fce92f9f`
 - 2026-06-10 18:24 — `code_smith` @ `01b62524`
 - 2026-06-10 16:54 — `inbox_worker` @ `3ff6233b`
 - 2026-06-10 16:52 — `self_proposer` @ `c099052f`
@@ -27,9 +28,8 @@ Every skill below passed its contract tests at save time — `save_graph` refuse
 - 2026-06-10 13:55 — `code_improve` @ `7240a846`
 - 2026-06-10 13:55 — `playground_writer` @ `b2e5af1b`
 - 2026-06-10 11:15 — `playground_writer` @ `389ebe6b`
-- 2026-06-10 10:35 — `playground_writer` @ `4cf1ed31`
 
-*Last heartbeat: 2026-06-10 18:24 UTC*
+*Last heartbeat: 2026-06-11 16:06 UTC*
 
 ## Recent deliveries
 

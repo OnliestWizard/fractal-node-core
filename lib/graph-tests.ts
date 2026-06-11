@@ -38,6 +38,7 @@ export function valueAtPath(root: Record<string, unknown>, path: string): { valu
 export function checkExpectation(exp: GraphExpectation, outputs: Record<string, unknown>): string[] {
   const { value, found } = valueAtPath(outputs, exp.port)
   const failures: string[] = []
+  const asText = () => (typeof value === 'string' ? value : JSON.stringify(value) ?? '')
 
   if (exp.exists !== undefined && found !== exp.exists) {
     failures.push(`${exp.port}: expected exists=${exp.exists}, got ${found}`)
@@ -53,6 +54,36 @@ export function checkExpectation(exp: GraphExpectation, outputs: Record<string, 
     if (!found) failures.push(`${exp.port}: missing (expected to contain ${JSON.stringify(exp.contains)})`)
     else if (typeof text !== 'string' || !text.includes(exp.contains)) {
       failures.push(`${exp.port}: ${JSON.stringify(text?.slice(0, 120))} does not contain ${JSON.stringify(exp.contains)}`)
+    }
+  }
+  if (exp.maxLength !== undefined) {
+    if (!found) failures.push(`${exp.port}: missing (expected maxLength ${exp.maxLength})`)
+    else if (asText().length > exp.maxLength) {
+      failures.push(`${exp.port}: length ${asText().length} exceeds maxLength ${exp.maxLength}`)
+    }
+  }
+  if (exp.lineCount !== undefined) {
+    if (!found) failures.push(`${exp.port}: missing (expected ${exp.lineCount} lines)`)
+    else {
+      const lines = asText().replace(/\r?\n$/, '').split(/\r?\n/).length
+      if (lines !== exp.lineCount) {
+        failures.push(`${exp.port}: expected ${exp.lineCount} lines, got ${lines}`)
+      }
+    }
+  }
+  if (exp.matches !== undefined) {
+    if (!found) failures.push(`${exp.port}: missing (expected to match /${exp.matches}/)`)
+    else {
+      let re: RegExp
+      try {
+        re = new RegExp(exp.matches)
+      } catch {
+        failures.push(`${exp.port}: invalid matches pattern /${exp.matches}/`)
+        return failures
+      }
+      if (!re.test(asText())) {
+        failures.push(`${exp.port}: ${JSON.stringify(asText().slice(0, 120))} does not match /${exp.matches}/`)
+      }
     }
   }
   return failures

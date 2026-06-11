@@ -31,19 +31,23 @@ function parseArgs(argv: string[]) {
   return out
 }
 
+// Two attempts: the first call to a lazy pool can lose to an npx cold-start
+// timeout; the pool retries the connect, so a second try usually lands.
 async function fetchDeliveries(pool: McpPool, owner: string, repo: string): Promise<DeliveryLine[]> {
-  try {
-    const raw = await pool.callTool('playground', 'list_issues', {
-      owner, repo, state: 'all', sort: 'updated', direction: 'desc', per_page: 5,
-    })
-    const issues = JSON.parse(String(raw)) as Array<{
-      title: string; html_url: string; state: string; updated_at: string
-    }>
-    return issues.map(i => ({ title: i.title, url: i.html_url, state: i.state, updatedAt: i.updated_at }))
-  } catch (err) {
-    console.warn(`could not fetch deliveries: ${err}`)
-    return []
+  for (let attempt = 1; attempt <= 2; attempt++) {
+    try {
+      const raw = await pool.callTool('playground', 'list_issues', {
+        owner, repo, state: 'all', sort: 'updated', direction: 'desc', per_page: 5,
+      })
+      const issues = JSON.parse(String(raw)) as Array<{
+        title: string; html_url: string; state: string; updated_at: string
+      }>
+      return issues.map(i => ({ title: i.title, url: i.html_url, state: i.state, updatedAt: i.updated_at }))
+    } catch (err) {
+      console.warn(`could not fetch deliveries (attempt ${attempt}/2): ${err}`)
+    }
   }
+  return []
 }
 
 async function pushToPlayground(pool: McpPool, owner: string, repo: string, path: string, content: string) {

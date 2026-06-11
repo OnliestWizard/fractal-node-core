@@ -15,12 +15,20 @@ export const SPEC_VERSION = '1'
 
 /** One assertion against the outputs of a test execution. `port` is an output
  *  port name, optionally dot-pathed into the value (JSON-string values are
- *  parsed during the walk, so "result.content.path" reaches into MCP results). */
+ *  parsed during the walk, so "result.content.path" reaches into MCP results).
+ *  The shape ops (maxLength, lineCount, matches) exist because `exists` is too
+ *  weak for LLM-output skills — a 2KB essay once shipped as a "haiku". */
 export interface GraphExpectation {
   port: string
   equals?: unknown
   contains?: string
   exists?: boolean
+  /** Maximum character length of the value (non-strings are JSON-stringified). */
+  maxLength?: number
+  /** Exact number of lines (split on \n, trailing newline ignored). */
+  lineCount?: number
+  /** Regular expression (source string) the value must match. */
+  matches?: string
 }
 
 /** A contract test carried by the graph itself. save_graph runs all cases

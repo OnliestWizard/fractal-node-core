@@ -1,5 +1,26 @@
 # Session State — fractal-node-core
 
+## Expectation ops ✓ (2026-06-11, post-flip) — valid≠correct gets teeth
+
+First post-flip item from the queue. `GraphExpectation` gains three shape
+ops: `maxLength` (char cap, non-strings stringified), `lineCount` (exact,
+trailing newline ignored), `matches` (regex source; invalid pattern = a
+failure, not a crash). All combinable on one expectation; missing ports
+fail rather than pass vacuously. Plant's test_graph catalog doc now tells
+it to PREFER shape assertions over `exists` for LLM-output ports. 264
+tests (5 new in graphTests), typecheck clean.
+
+**Live confirmation, the full-circle one**: haiku_writer — the skill whose
+`exists` contract let a 2KB essay ship as a "haiku" — re-saved through the
+gate with `{exists, lineCount: 3, maxLength: 120}`. Gate ran a real probe
+haiku, passed, versioned (24th library version). Meter: <$0.01. STATUS.md
+re-pushed (now public); fetchDeliveries got a 2-attempt retry after the
+npx cold-start timeout ate the deliveries section a second time.
+
+Both repos went PUBLIC today (core + playground, anonymous-verified);
+playground got a real README front door. Next in queue: failed-trace→
+contract-test (the Raindrop steal), then the inbox_sweep heartbeat.
+
 ## Screenshot scrubbed ✓ (2026-06-11) — PRE-FLIGHT COMPLETE
 
 `Screenshot_20260611_044931_Google.jpg` (the crash-recovery photo of the

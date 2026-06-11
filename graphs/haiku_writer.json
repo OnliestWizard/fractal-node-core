@@ -89,7 +89,7 @@
   "description": "Write a haiku about a topic. Returns the haiku text.",
   "tests": [
     {
-      "name": "produces a haiku",
+      "name": "produces an actual haiku — three lines, haiku-sized",
       "inputs": {
         "topic": "contract probe"
       },
@@ -97,6 +97,14 @@
         {
           "port": "haiku",
           "exists": true
+        },
+        {
+          "port": "haiku",
+          "lineCount": 3
+        },
+        {
+          "port": "haiku",
+          "maxLength": 120
         }
       ]
     }

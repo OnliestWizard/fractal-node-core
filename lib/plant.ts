@@ -114,7 +114,7 @@ const BUILTIN_CATALOG = [
   },
   {
     id: 'test_graph',
-    description: 'Run a graph\'s own contract tests (its top-level "tests" array) without saving. Each test case is { name?, inputs, expect?: [{ port, equals?|contains?|exists? }], expectError? } — the graph executes with the case inputs and expectations are checked against its outputs (port accepts dot-paths into object or JSON-string values, e.g. "result.content.path"). Returns passed, a summary string, and per-case results.',
+    description: 'Run a graph\'s own contract tests (its top-level "tests" array) without saving. Each test case is { name?, inputs, expect?: [{ port, equals?|contains?|exists?|maxLength?|lineCount?|matches? }], expectError? } — the graph executes with the case inputs and expectations are checked against its outputs (port accepts dot-paths into object or JSON-string values, e.g. "result.content.path"). For LLM-output ports prefer SHAPE assertions over exists: maxLength (char cap), lineCount (exact lines — e.g. 3 for a haiku), matches (regex source). Returns passed, a summary string, and per-case results.',
     inputs:  [{ id: 'graph', type: 'object' }],
     outputs: [{ id: 'passed', type: 'boolean' }, { id: 'summary', type: 'string' }, { id: 'results', type: 'object' }],
   },

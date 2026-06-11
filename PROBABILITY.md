@@ -110,7 +110,7 @@ retrieval, rung costs are ops costs.
 |---|---|
 | First rung: triage router + `inbox_sweep` + a pulse | ○ designed, not built — owner-only until hardening |
 | Seeding (`library_gardener`) after shipping | ○ agreed sequence |
-| Stronger expectation ops (prereq for seeded contracts) | ○ open |
+| Stronger expectation ops (prereq for seeded contracts) | ✓ built 2026-06-11 — maxLength / lineCount / matches; haiku_writer's contract upgraded live through the gate (the valid≠correct fix) |
 
 ## 006 — Provenance Is the Product (2026-06-10, unfinished)
 

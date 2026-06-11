@@ -95,6 +95,46 @@ describe('checkExpectation', () => {
     expect(checkExpectation({ port: 'y', exists: false }, { x: 0 })).toEqual([])
     expect(checkExpectation({ port: 'y', exists: true }, { x: 0 })).toHaveLength(1)
   })
+
+  it('maxLength caps string length and stringifies non-strings', () => {
+    expect(checkExpectation({ port: 'x', maxLength: 10 }, { x: 'short' })).toEqual([])
+    expect(checkExpectation({ port: 'x', maxLength: 4 }, { x: 'too long' })).toEqual([
+      'x: length 8 exceeds maxLength 4',
+    ])
+    expect(checkExpectation({ port: 'x', maxLength: 100 }, { x: { a: 1 } })).toEqual([])
+    expect(checkExpectation({ port: 'x', maxLength: 3 }, { x: { a: 1 } })).toHaveLength(1)
+  })
+
+  it('lineCount counts exact lines, ignoring a trailing newline', () => {
+    const haiku = 'line one\nline two\nline three'
+    expect(checkExpectation({ port: 'x', lineCount: 3 }, { x: haiku })).toEqual([])
+    expect(checkExpectation({ port: 'x', lineCount: 3 }, { x: haiku + '\n' })).toEqual([])
+    expect(checkExpectation({ port: 'x', lineCount: 3 }, { x: 'a 2KB essay on recursion' })).toEqual([
+      'x: expected 3 lines, got 1',
+    ])
+  })
+
+  it('matches tests a regex source against the value', () => {
+    expect(checkExpectation({ port: 'x', matches: '^v\\d+\\.\\d+' }, { x: 'v1.2 released' })).toEqual([])
+    expect(checkExpectation({ port: 'x', matches: '^v\\d+' }, { x: 'version one' })).toHaveLength(1)
+    expect(checkExpectation({ port: 'x', matches: '(unclosed' }, { x: 'anything' })).toEqual([
+      'x: invalid matches pattern /(unclosed/',
+    ])
+  })
+
+  it('shape ops report missing ports instead of passing vacuously', () => {
+    expect(checkExpectation({ port: 'gone', maxLength: 5 }, {})).toHaveLength(1)
+    expect(checkExpectation({ port: 'gone', lineCount: 3 }, {})).toHaveLength(1)
+    expect(checkExpectation({ port: 'gone', matches: 'x' }, {})).toHaveLength(1)
+  })
+
+  it('ops combine — one expectation can assert shape and content together', () => {
+    const failures = checkExpectation(
+      { port: 'x', lineCount: 2, maxLength: 10, contains: 'absent' },
+      { x: 'one\ntwo\nthree but far too long' },
+    )
+    expect(failures).toHaveLength(3)
+  })
 })
 
 // ── runGraphTests ─────────────────────────────────────────────────────────────
