@@ -110,7 +110,7 @@ retrieval, rung costs are ops costs.
 
 | Call | Status |
 |---|---|
-| First rung: triage router + `inbox_sweep` + a pulse | ○ designed, not built — owner-only until hardening |
+| First rung: triage router + `inbox_sweep` + a pulse | ✓ BUILT + LIVE 2026-06-11 — issue_triage + issue_handler (gated graphs), sweep rails (owner-only, plant:* labels, budget via meter, allowlist), first unattended delivery (issue #6, <$0.01), pulse.ts with non-overlapping beats + total budget. The rung added time, not code — as predicted. |
 | Seeding (`library_gardener`) after shipping | ○ agreed sequence |
 | Stronger expectation ops (prereq for seeded contracts) | ✓ built 2026-06-11 — maxLength / lineCount / matches; haiku_writer's contract upgraded live through the gate (the valid≠correct fix) |
 

@@ -79,6 +79,13 @@ For the GitHub demos you need a **sandbox repo you own** (the demos write
 real commits to it, deliberately) and two fine-grained PATs — read-wide,
 write-narrow. `.env.example` walks through it.
 
+With the sandbox configured, the system also runs **unattended**:
+`npx tsx sweep.ts` triages the sandbox's issue queue (dry-run by default;
+`--live` delivers — code requests get implemented, tested, committed, and
+answered with evidence), and `npx tsx pulse.ts --live` does it on a timer.
+Owner-authored issues only, label state machine, budget-capped via the
+token meter.
+
 There's also an execution server (`npm run server`: validate / execute with
 SSE streaming / plant / replay). A visual editor lives in `editor/` (canvas
 rendering, live run animation) but is **experimental and unmaintained** —

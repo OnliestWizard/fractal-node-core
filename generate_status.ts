@@ -15,6 +15,7 @@ config({ path: '.env.local' })
 import { writeFileSync } from 'fs'
 import { McpPool } from './lib/mcp-pool'
 import { collectStatus, renderStatusMarkdown, type DeliveryLine } from './lib/status-report'
+import { fetchDeliveries, pushStatusFile } from './lib/status-push'
 
 function parseArgs(argv: string[]) {
   const out: Record<string, string | true> = {}
@@ -29,43 +30,6 @@ function parseArgs(argv: string[]) {
     }
   }
   return out
-}
-
-// Two attempts: the first call to a lazy pool can lose to an npx cold-start
-// timeout; the pool retries the connect, so a second try usually lands.
-async function fetchDeliveries(pool: McpPool, owner: string, repo: string): Promise<DeliveryLine[]> {
-  for (let attempt = 1; attempt <= 2; attempt++) {
-    try {
-      const raw = await pool.callTool('playground', 'list_issues', {
-        owner, repo, state: 'all', sort: 'updated', direction: 'desc', per_page: 5,
-      })
-      const issues = JSON.parse(String(raw)) as Array<{
-        title: string; html_url: string; state: string; updated_at: string
-      }>
-      return issues.map(i => ({ title: i.title, url: i.html_url, state: i.state, updatedAt: i.updated_at }))
-    } catch (err) {
-      console.warn(`could not fetch deliveries (attempt ${attempt}/2): ${err}`)
-    }
-  }
-  return []
-}
-
-async function pushToPlayground(pool: McpPool, owner: string, repo: string, path: string, content: string) {
-  // create_or_update_file needs the current blob sha when the file exists
-  let sha: string | undefined
-  try {
-    const raw = await pool.callTool('playground', 'get_file_contents', { owner, repo, path })
-    sha = (JSON.parse(String(raw)) as { sha?: string }).sha
-  } catch { /* new file */ }
-
-  const result = await pool.callTool('playground', 'create_or_update_file', {
-    owner, repo, path, content,
-    message: 'garden report: regenerate STATUS.md',
-    branch: 'main',
-    ...(sha ? { sha } : {}),
-  })
-  const url = (JSON.parse(String(result)) as { content?: { html_url?: string } }).content?.html_url
-  console.log(`pushed to playground: ${url ?? `${owner}/${repo}/${path}`}`)
 }
 
 async function main() {
@@ -94,7 +58,8 @@ async function main() {
   console.log(`wrote ${outPath}: ${report.skills.length} skills, ${report.recentSaves.length} recent saves${deliveries ? `, ${deliveries.length} deliveries` : ''}`)
 
   if (pool) {
-    await pushToPlayground(pool, owner, repo, 'STATUS.md', markdown)
+    const url = await pushStatusFile(pool, owner, repo, markdown)
+    console.log(`pushed to playground: ${url ?? `${owner}/${repo}/STATUS.md`}`)
     await pool.close()
   }
 }

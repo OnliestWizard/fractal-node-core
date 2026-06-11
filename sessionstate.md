@@ -1,5 +1,26 @@
 # Session State — fractal-node-core
 
+## Heartbeat COMPLETE ✓ (2026-06-11) — pulse.ts; the first rung is climbed
+
+`pulse.ts`: chained beats (next wait starts only after the sweep finishes —
+overlap impossible by construction), `--interval 90s|15m|1h` (default 15m),
+`--once` / `--beats N`, `--total-budget` ceiling (default $1) checked
+before each beat, per-beat `--budget`/`--max-issues` passed through to the
+sweep. SIGINT finishes the current beat then stops (second Ctrl+C forces;
+at-most-once labels mean a hard kill strands, never double-delivers).
+Failed beats log and the pulse keeps beating. After a delivering beat the
+garden report regenerates + pushes (only when something actually changed —
+no commit spam). `lib/status-push.ts` extracted (fetchDeliveries +
+pushStatusFile) and generate_status.ts refactored onto it.
+
+**Live-verified: 2 dry beats 60s apart** — #6 skipped-labeled both beats
+(yesterday's delivery is un-redoable: idempotency proven live), caps held,
+clean stop summary, <$0.01. 287 tests, typecheck clean.
+
+probability005's first rung is DONE: graphs → agent by adding TIME to the
+same gated artifacts, no new engine code. README gained the unattended
+section. The org chart compiles, and now it also ticks.
+
 ## Heartbeat 4/n: FIRST LIVE UNATTENDED DELIVERY ✓ (2026-06-11)
 
 Issue #6 (clamp(value, min, max), 5 test cases incl. expectError) filed as
