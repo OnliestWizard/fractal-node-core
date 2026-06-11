@@ -1,5 +1,19 @@
 # Session State — fractal-node-core
 
+## THE PULSE IS LIVE ON GITHUB ✓ (2026-06-11, 22:41 UTC)
+
+Keys configured (secret = PLAYGROUND_PAT_WRITE — GitHub forbids GITHUB_*
+secret names; workflow maps it back to the GITHUB_PAT_WRITE env the code
+expects). Manual dry dispatch: SUCCESS — MCP server spawned on the runner,
+pool connected, 6 scanned / 6 correctly skipped-labeled / $0.00, clean
+stop. Bonus proof: the cron had already fired once BEFORE keys existed and
+was `skipped` by the unconfigured guard (no red X), exactly as designed.
+
+**The system is now autonomous infrastructure**: every 30 minutes GitHub's
+runners execute a live beat — owner-authored issues get delivered with
+receipts whether or not any human machine is on. The laptop is officially
+just a visitor. 007 completed in hardware.
+
 ## 008 + Actions pulse + reaper ✓ (2026-06-11, the day's last act)
 
 **probability008.md "The Second Sweep"** — 004's field survey re-run after
