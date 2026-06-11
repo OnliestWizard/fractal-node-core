@@ -19,6 +19,7 @@ import { McpPool } from './mcp-pool'
 import { plantGraph, plantGraphTracked, buildCatalogSection } from './plant'
 import { saveGraph, loadGraph, listVersions, rollbackGraph } from './graph-store'
 import { checkExpectation, buildReport, type GraphTestReport, type GraphTestResult } from './graph-tests'
+import { recordUsage } from './llm-usage'
 
 export type NodeEvent = (
   | { type: 'start';    nodeId: string; depth: number }
@@ -115,6 +116,7 @@ async function runBuiltin(nodeId: string, inputs: Record<string, unknown>): Prom
           { role: 'user', content: `Content:\n${inputs.content}\n\nQuestion: ${inputs.question}` },
         ],
       })
+      recordUsage('gpt-4o-mini', res.usage)
       return { response: res.choices[0].message.content ?? '' }
     }
 
@@ -126,6 +128,7 @@ async function runBuiltin(nodeId: string, inputs: Record<string, unknown>): Prom
       if (inputs.feedback) body += `\n\nFeedback:\n${inputs.feedback}`
       msgs.push({ role: 'user', content: body })
       const res = await oai().chat.completions.create({ model: 'gpt-4o-mini', messages: msgs })
+      recordUsage('gpt-4o-mini', res.usage)
       return { response: res.choices[0].message.content ?? '' }
     }
 
@@ -141,6 +144,7 @@ async function runBuiltin(nodeId: string, inputs: Record<string, unknown>): Prom
           { role: 'user', content: `Prompt: ${inputs.prompt}\n\nDraft:\n${inputs.draft}${testSection}` },
         ],
       })
+      recordUsage('gpt-4o', res.usage)
       const p = JSON.parse(res.choices[0].message.content ?? '{}')
       return { response: p.response ?? '', continue: p.continue ?? false, feedback: p.feedback ?? '' }
     }
@@ -503,6 +507,7 @@ async function runAgent(
 
   for (let turn = 0; turn < maxTurns; turn++) {
     const response = await oai().chat.completions.create({ model, messages, tools: allTools })
+    recordUsage(model, response.usage)
     const msg = response.choices[0].message
     messages.push(msg)
 

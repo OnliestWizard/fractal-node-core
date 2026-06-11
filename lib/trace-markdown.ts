@@ -4,12 +4,15 @@
 // depth indentation), inputs, outputs, and errors, with the commit as the medium.
 
 import type { NodeEvent } from './execute-engine'
+import { formatUsage, type UsageSummary } from './llm-usage'
 
 export interface TraceFile {
   graph?: string
   inputs?: Record<string, unknown>
   outputs?: Record<string, unknown>
   events?: NodeEvent[]
+  /** Stamped by run_execute when the run spent tokens — cost is a receipt. */
+  usage?: UsageSummary
 }
 
 export interface TraceRenderOptions {
@@ -72,6 +75,10 @@ export function renderTraceMarkdown(trace: TraceFile, opts: TraceRenderOptions =
   lines.push('')
   const span = spanMs > 0 ? ` · recorded span ${formatMs(spanMs)}` : ''
   lines.push(`**${events.length} events · ${completed} nodes completed · ${errors.length} error${errors.length === 1 ? '' : 's'}${span}**`)
+
+  if (trace.usage && trace.usage.requests > 0) {
+    lines.push('', `*${formatUsage(trace.usage)}*`)
+  }
 
   if (trace.inputs && Object.keys(trace.inputs).length > 0) {
     lines.push('', '## Inputs', '', fenced(truncate(JSON.stringify(trace.inputs, null, 2), cap), 'json'))

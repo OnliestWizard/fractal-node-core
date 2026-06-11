@@ -4,6 +4,7 @@ config({ path: '.env.local' })
 import { existsSync, readFileSync, writeFileSync } from 'fs'
 import { McpPool } from './lib/mcp-pool'
 import { executeSubgraph } from './lib/execute-engine'
+import { usageSummary } from './lib/llm-usage'
 import type { SerializedGraph } from './core/serializer'
 
 function readJson<T>(path: string, what: string): T {
@@ -67,7 +68,11 @@ async function main() {
   await pool.close()
 
   if (args.out) {
-    writeFileSync(args.out, JSON.stringify({ graph: args.graph, inputs: userInputs, outputs, events }, null, 2))
+    const usage = usageSummary()
+    writeFileSync(args.out, JSON.stringify({
+      graph: args.graph, inputs: userInputs, outputs, events,
+      ...(usage.requests > 0 ? { usage } : {}),
+    }, null, 2))
     console.log(`\n── trace → ${args.out}`)
   }
 }

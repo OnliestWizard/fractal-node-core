@@ -1,5 +1,19 @@
 # Session State — fractal-node-core
 
+## Token meter ✓ (2026-06-11) — cost is a receipt
+
+`lib/llm-usage.ts`: per-model accumulator fed by all 5 OpenAI call sites
+(plant callLLM, draft_writer, quality_judge, research_answer, agent loop).
+PRICES table (gpt-4o $2.50/$10 per M, mini $0.15/$0.60, dated 2026-06;
+unknown models count tokens, contribute $0). Visible: a `process.on('exit')`
+hook prints ONE line on any process that spent tokens — CLI, demo, server —
+zero per-file wiring ("LLM usage: gpt-4o-mini 1× 47 in / 18 out ≈ <$0.01").
+Recorded: run_execute stamps `usage` into the trace JSON (omitted when
+zero / older traces), and trace-markdown renders it under the receipt
+header. Live-verified end-to-end on a haiku_writer run. 259 tests (24
+files), typecheck clean. formatCost floors at "<$0.01" instead of lying
+with $0.00.
+
 ## Gauntlet 3/4: cost honesty ✓ (2026-06-11)
 
 Better than the planned per-demo meter: the user pulled the project-lifetime

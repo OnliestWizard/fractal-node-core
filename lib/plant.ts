@@ -5,6 +5,7 @@ import type { SerializedGraph } from '../core/serializer'
 import { loadMcpCatalog } from './mcp-catalog'
 import type { McpPool } from './mcp-pool'
 import { listGraphs, libraryCatalog } from './graph-store'
+import { recordUsage } from './llm-usage'
 
 let _client: OpenAI | undefined
 const client = () => (_client ??= new OpenAI())
@@ -321,6 +322,7 @@ async function callLLM(messages: OpenAI.Chat.ChatCompletionMessageParam[]): Prom
     messages,
     response_format: { type: 'json_object' },
   })
+  recordUsage('gpt-4o', resp.usage)
   return resp.choices[0].message.content ?? '{}'
 }
 
