@@ -44,6 +44,8 @@ built into the substrate, not bolted on outside:
 | **Lineage** | graphs spawned by graphs carry `parentGraphId` |
 | **Replay** | any trace replays as synthetic events, at recorded pace — watch a past run without re-executing |
 | **Paper dashboard** | traces render to committed markdown receipts; `STATUS.md` regenerates from the library itself — GitHub is the UI, zero servers |
+| **Failure → test** | a failed run's trace auto-drafts a contract test (`draft_test`) — the library compounds lessons, not just skills |
+| **Cost** | every LLM call is metered; runs print their spend and stamp it into the trace |
 
 And the fractal property: a node's subgraph is the same type as the graph it
 lives in. A saved skill **is a node** — name it in any graph and it executes
@@ -83,8 +85,13 @@ With the sandbox configured, the system also runs **unattended**:
 `npx tsx sweep.ts` triages the sandbox's issue queue (dry-run by default;
 `--live` delivers — code requests get implemented, tested, committed, and
 answered with evidence), and `npx tsx pulse.ts --live` does it on a timer.
-Owner-authored issues only, label state machine, budget-capped via the
-token meter.
+Owner-authored issues only, label state machine (stale claims are reaped
+to a human, never retried), budget-capped via the token meter.
+
+This repo runs that heartbeat as a **GitHub Actions cron**
+(`.github/workflows/pulse.yml`, every 30 minutes): file an issue in the
+sandbox from a phone and it's delivered with receipts — no machine of the
+owner's needs to be on. The substrate runs inside its own medium.
 
 There's also an execution server (`npm run server`: validate / execute with
 SSE streaming / plant / replay). A visual editor lives in `editor/` (canvas
