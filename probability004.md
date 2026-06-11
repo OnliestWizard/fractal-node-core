@@ -51,6 +51,32 @@ The Voyager vision is now a [survey category](https://arxiv.org/pdf/2507.21046):
   [Tyk](https://tyk.io/learning-center/ai-agent-api-governance-auth-audit-trails-and-zero-trust/))
   bolt audit onto *opaque* agents from outside.
 
+### Addendum (2026-06-11): Raindrop 2.0 — the outside-in version, funded
+
+[Raindrop](https://www.raindrop.ai/) ("Sentry for AI agents", YC,
+[$15M seed](https://pulse2.com/raindrop-15-million-seed-funding/)) shipped
+["self-healing agents"](https://www.raindrop.ai/blog/introducing-raindrop-2/):
+detect a production failure → triage agent finds root cause → coding agent
+fixes it → **the failure is converted into an eval so it can't regress** —
+plus [Workshop](https://github.com/raindrop-ai/workshop), an open-source
+local debugger that generates evals from real failures.
+
+This is the observability category climbing toward the substrate: they
+started with receipts and are now acting on failures. "Failure becomes an
+eval" is probability003's contract thesis arriving from the commercial
+direction. The architectural contrast is the pitch, sharpened: Raindrop is
+**outside-in** (instrument an opaque agent, infer what happened, patch from
+outside; works with ANY stack at production scale) — this system is
+**inside-out** (the substrate IS the trace; failures are structural, not
+inferred; guarantees are total but only for graphs born in the IR).
+Wedge vs reach.
+
+Feature worth stealing, queued: **a failed trace becomes a contract test** —
+auto-draft a GraphTestCase from a failed run's inputs and failure point and
+offer it to the graph's suite. The explainer-haiku incident did this
+manually; mechanizing it means the library compounds *lessons*, not just
+skills. Slots next to the expectation-ops work.
+
 ## What's actually different here
 
 Each neighbor has one pillar; this has the combination:

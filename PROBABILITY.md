@@ -88,6 +88,12 @@ property. The idea-novelty window is closing; ship.**
 | Go-public checklist (README, license, config, sweep, history) | ✓ complete |
 | The visibility flip | ○ pending — user's gut: pre-flight gauntlet first (fresh-clone test, failure drills, editor verdict, cost honesty). Fair: every demo's first run found a real bug. |
 
+*Addendum 2026-06-11:* Raindrop 2.0 ("self-healing agents", YC, $15M) ships
+failure→eval conversion — the contract thesis arriving outside-in from the
+observability category. Confirms the convergence; sharpens the pitch
+(inside-out vs outside-in); contributes a queued feature: **failed traces
+auto-draft contract tests**. Details in 004.
+
 ## 005 — The Ladder (2026-06-10)
 
 **Thesis:** graph → agent → app → product, where **no rung adds code** —
