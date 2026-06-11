@@ -1,5 +1,18 @@
 # Session State — fractal-node-core
 
+## The queue is worked ✓ (2026-06-11) — pulse beat delivered #5 and #4
+
+`npx tsx pulse.ts --once --live --max-issues 2`: ONE beat delivered both
+open work items — #5 parseDuration (code_smith judge loop pass 1, run_js
+7/7, planted/issue-5.js committed, evidence comment) and #4 the system's
+own self-proposal (inbox_worker prototype → proposals/issue-4.md, 2.9KB,
+comment) — then auto-refreshed the public garden report. <$0.01 total.
+API-verified: both plant:delivered. Full circle on #4: the system PROPOSED
+it (self_proposer, 2026-06-10), and the system PROTOTYPED it (inbox sweep,
+2026-06-11) — propose and deliver are still separate channels, human still
+closes. #6 skipped-labeled again (idempotency). #3–#1 remain unlabeled
+('other' targets — next beat with cap ≥3 labels them needs-human).
+
 ## Heartbeat COMPLETE ✓ (2026-06-11) — pulse.ts; the first rung is climbed
 
 `pulse.ts`: chained beats (next wait starts only after the sweep finishes —
