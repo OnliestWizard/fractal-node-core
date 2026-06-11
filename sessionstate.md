@@ -1,5 +1,44 @@
 # Session State — fractal-node-core
 
+## Paper dashboard ✓ (2026-06-11) — trace receipts + STATUS.md, live
+
+Session opened recovering from a laptop freeze: last terminal output survived
+only as a phone photo of the screen (screenshot JPG in root), but the work
+itself had landed — probability004's Raindrop 2.0 addendum (outside-in vs
+inside-out, "failed trace becomes a contract test" queued) was committed in
+`mango`. The frozen message's proposal — the zero-server "paper dashboard" —
+was then built. 243 tests (22 files), typecheck clean. Commit `papaya`.
+
+- **`lib/trace-markdown.ts` + `render_trace.ts`** — trace JSON → markdown
+  replay receipt: the console timeline (▶/✓/✗, durations, depth indent for
+  skill nesting) in a fenced block, inputs, per-port outputs, errors section.
+  MCP JSON-string results pretty-parse; oversized values truncate with a
+  count; fences widen if content contains backticks. Default out = trace path
+  `.json`→`.md`. `playground_issue_trace.md` rendered as the live sample
+  (issue #1's 847ms create_issue call visible).
+- **`lib/status-report.ts` + `generate_status.ts`** — the garden report.
+  `collectStatus()` = libraryCatalog + listVersions (honors
+  FRACTAL_GRAPHS_DIR); `renderStatusMarkdown()` = skills table (description,
+  interface signature, tests, versions, last saved), recent saves list =
+  heartbeat, optional deliveries section. Pipe/newline escaping so
+  descriptions can't break the table; injectable generatedAt for
+  deterministic tests.
+- **`--push` LIVE ✓**: STATUS.md committed to Plant_Playground main —
+  https://github.com/OnliestWizard/Plant_Playground/blob/main/STATUS.md —
+  7 skills, 23 versions, heartbeat 2026-06-10 18:24, deliveries = all 5
+  issues pulled live via playground__list_issues. Push fetches the existing
+  blob sha first (create path exercised live; update path runs next push).
+  Verified back through the API with the READ token (repo is private, so
+  anonymous raw fetch 404s — that's expected, not a failure).
+- **Crash echo**: the `filesystem` MCP server timed out connecting (30s)
+  while both GitHub servers connected fine — same npx-stack symptom as the
+  freeze. Lazy pool / per-server opt-in still queued as the fix.
+- 16 new tests: `tests/traceMarkdown.test.ts` (formatMs, timeline glyphs +
+  indent, error surfacing, JSON pretty-parse, truncation, fence widening,
+  empty trace, footer), `tests/statusReport.test.ts` (collect w/ version
+  counts + ordering + limit, render totals/signatures, table escaping,
+  deliveries optional, empty library).
+
 ## Code service + the ladder (2026-06-10, last entries of the day)
 
 - **demo_code_service.ts ✓ first try**: spec-to-tested-code service. Issue #5

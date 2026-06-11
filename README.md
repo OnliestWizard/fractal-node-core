@@ -43,6 +43,7 @@ built into the substrate, not bolted on outside:
 | **Permissions** | `allowedTools` threads as a stack of sets — nesting only narrows, never widens; skills gate by name |
 | **Lineage** | graphs spawned by graphs carry `parentGraphId` |
 | **Replay** | any trace replays as synthetic events, at recorded pace — watch a past run without re-executing |
+| **Paper dashboard** | traces render to committed markdown receipts; `STATUS.md` regenerates from the library itself — GitHub is the UI, zero servers |
 
 And the fractal property: a node's subgraph is the same type as the graph it
 lives in. A saved skill **is a node** — name it in any graph and it executes
@@ -56,15 +57,19 @@ git clone https://github.com/OnliestWizard/fractal-node-core
 cd fractal-node-core && npm install
 cp .env.example .env.local   # then fill it in — see the comments there
 
-npm test            # 227 tests, no API keys needed
+npm test            # 243 tests, no API keys needed
 npm run typecheck
 
 # design a graph from a sentence, then run it
 npx tsx run_plant.ts "fetch a URL and summarize it" --out graph.json
 npx tsx run_execute.ts --graph graph.json --inputs-file inputs.json --out trace.json
 
-# replay the trace at recorded pace
+# replay the trace at recorded pace, or render it as a markdown receipt
 npx tsx run_replay.ts --trace trace.json --speed 1
+npx tsx render_trace.ts --trace trace.json
+
+# regenerate the library's front page (--push commits it to the sandbox repo)
+npx tsx generate_status.ts
 ```
 
 For the GitHub demos you need a **sandbox repo you own** (the demos write
@@ -96,7 +101,7 @@ dev`) that renders graphs on a canvas and animates runs live.
 - `core/` — types, validator, serializer, the legacy registry executor and
   emit pipeline
 - `lib/` — the canonical engine, Plant compiler, MCP pool, graph store,
-  replay, contract-test runner
+  replay, contract-test runner, trace→markdown renderer, status report
 - `examples/` — runnable graph JSONs (routers, agents, meta-graphs, the
   self-improvement loop)
 - `PROBABILITY.md` — master index of the strategy series; `probability001-006.md`
