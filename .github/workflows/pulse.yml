@@ -2,8 +2,10 @@
 # laptop not required. The substrate runs inside its own medium.
 #
 # Required repository secrets (Settings → Secrets and variables → Actions):
-#   OPENAI_API_KEY      — for triage / judge / writer calls
-#   GITHUB_PAT_WRITE    — fine-grained PAT scoped to the playground repo
+#   OPENAI_API_KEY       — for triage / judge / writer calls
+#   PLAYGROUND_PAT_WRITE — fine-grained PAT scoped to the playground repo
+#                          (secret names can't start with GITHUB_; the env
+#                          mapping below restores the name the code expects)
 # Required repository variables:
 #   PLAYGROUND_OWNER    — e.g. OnliestWizard
 #   PLAYGROUND_REPO     — e.g. Plant_Playground
@@ -53,7 +55,7 @@ jobs:
       - name: pulse beat
         env:
           OPENAI_API_KEY: ${{ secrets.OPENAI_API_KEY }}
-          GITHUB_PAT_WRITE: ${{ secrets.GITHUB_PAT_WRITE }}
+          GITHUB_PAT_WRITE: ${{ secrets.PLAYGROUND_PAT_WRITE }}
           PLAYGROUND_OWNER: ${{ vars.PLAYGROUND_OWNER }}
           PLAYGROUND_REPO: ${{ vars.PLAYGROUND_REPO }}
         run: >
