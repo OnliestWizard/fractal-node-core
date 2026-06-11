@@ -1,5 +1,27 @@
 # Session State — fractal-node-core
 
+## Heartbeat 4/n: FIRST LIVE UNATTENDED DELIVERY ✓ (2026-06-11)
+
+Issue #6 (clamp(value, min, max), 5 test cases incl. expectError) filed as
+the controlled target, then ONE command — `npx tsx sweep.ts --live
+--max-issues 1` — did the entire delivery with no human in the chain:
+
+sweep → owner filter → label plant:in-progress → issue_handler →
+issue_triage (code_request) → category router → extract_json_block →
+code_smith → code_improve while loop (PASS 1, judge approved) → run_js
+5/5 → playground_writer commit planted/issue-6.js → evidence comment on
+the issue → label plant:delivered. **Total cost: <$0.01.**
+
+API-verified from outside: label = plant:delivered (and update_issue DOES
+auto-create labels — open question resolved), 1 evidence comment, committed
+clamp code is correct (range clamp + min>max throw). #5–#1 correctly
+skipped-cap. https://github.com/OnliestWizard/Plant_Playground/issues/6
+
+The whole nested dispatch worked at depth: sweep rails → handler graph →
+2 routers → 4 library skills (triage, code_smith, code_improve,
+playground_writer) → while loop → MCP writes, under SWEEP_ALLOWED_TOOLS
+the entire way. Remaining for the heartbeat: pulse.ts.
+
 ## Heartbeat 3/n: inbox_sweep ✓ (2026-06-11) — first beat ran dry
 
 `lib/inbox-sweep.ts` + `sweep.ts` CLI. Architecture line drawn deliberately:

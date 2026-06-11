@@ -1,6 +1,6 @@
 # Plant — skill library status
 
-**9 skills · 26 saved versions · 9 contract tests** · regenerated 2026-06-11 17:37 UTC
+**9 skills · 26 saved versions · 9 contract tests** · regenerated 2026-06-11 18:29 UTC
 
 Every skill below passed its contract tests at save time — `save_graph` refuses a failing graph, so presence in this table is the evidence.
 
@@ -35,11 +35,11 @@ Every skill below passed its contract tests at save time — `save_graph` refuse
 
 ## Recent deliveries
 
+- [Code request: clamp(value, min, max)](https://github.com/OnliestWizard/Plant_Playground/issues/6) — open, 2026-06-11
 - [Code request: parseDuration(str) → milliseconds](https://github.com/OnliestWizard/Plant_Playground/issues/5) — open, 2026-06-10
 - [Proposal: — Implement Graph Contract Tests for Node Types](https://github.com/OnliestWizard/Plant_Playground/issues/4) — open, 2026-06-10
 - [End-to-end with real fine-grained PATs](https://github.com/OnliestWizard/Plant_Playground/issues/3) — open, 2026-06-10
 - [First Plant-authored write: hello from the graph](https://github.com/OnliestWizard/Plant_Playground/issues/1) — open, 2026-06-10
-- [Scoped-write plumbing test: playground__ server](https://github.com/OnliestWizard/Plant_Playground/issues/2) — open, 2026-06-10
 
 ---
 
