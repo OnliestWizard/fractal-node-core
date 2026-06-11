@@ -1,0 +1,1729 @@
+{
+  "description": "Handle one GitHub issue for the inbox sweep. Classifies via issue_triage, then in live mode delivers: code_request → code_smith (judge loop, tested commit) + evidence comment; proposal → inbox_worker prototype + comment; anything else → \"needs-human\". dryRun=true classifies only — no writes. Returns category and result.",
+  "nodes": [
+    {
+      "id": "$input",
+      "inputs": [],
+      "outputs": [
+        {
+          "id": "issue",
+          "type": "string"
+        },
+        {
+          "id": "dryRun",
+          "type": "boolean"
+        },
+        {
+          "id": "number",
+          "type": "number"
+        },
+        {
+          "id": "codePath",
+          "type": "string"
+        },
+        {
+          "id": "docPath",
+          "type": "string"
+        },
+        {
+          "id": "message",
+          "type": "string"
+        },
+        {
+          "id": "branch",
+          "type": "string"
+        }
+      ]
+    },
+    {
+      "id": "mode_router",
+      "router": true,
+      "inputs": [
+        {
+          "id": "condition",
+          "type": "any"
+        },
+        {
+          "id": "issue",
+          "type": "string"
+        },
+        {
+          "id": "number",
+          "type": "number"
+        },
+        {
+          "id": "codePath",
+          "type": "string"
+        },
+        {
+          "id": "docPath",
+          "type": "string"
+        },
+        {
+          "id": "message",
+          "type": "string"
+        },
+        {
+          "id": "branch",
+          "type": "string"
+        }
+      ],
+      "outputs": [
+        {
+          "id": "category",
+          "type": "string"
+        },
+        {
+          "id": "result",
+          "type": "any"
+        }
+      ],
+      "branches": {
+        "true": {
+          "nodes": [
+            {
+              "id": "$input",
+              "inputs": [],
+              "outputs": [
+                {
+                  "id": "issue",
+                  "type": "string"
+                }
+              ]
+            },
+            {
+              "id": "issue_triage",
+              "inputs": [
+                {
+                  "id": "issue",
+                  "type": "string"
+                }
+              ],
+              "outputs": [
+                {
+                  "id": "category",
+                  "type": "string"
+                }
+              ]
+            },
+            {
+              "id": "dry_const",
+              "inputs": [],
+              "outputs": [
+                {
+                  "id": "value",
+                  "type": "string"
+                }
+              ],
+              "constraints": {
+                "literal": "dry-run"
+              }
+            },
+            {
+              "id": "$output",
+              "inputs": [
+                {
+                  "id": "category",
+                  "type": "string"
+                },
+                {
+                  "id": "result",
+                  "type": "any"
+                }
+              ],
+              "outputs": []
+            }
+          ],
+          "edges": [
+            {
+              "from": {
+                "nodeId": "$input",
+                "portId": "issue"
+              },
+              "to": {
+                "nodeId": "issue_triage",
+                "portId": "issue"
+              }
+            },
+            {
+              "from": {
+                "nodeId": "issue_triage",
+                "portId": "category"
+              },
+              "to": {
+                "nodeId": "$output",
+                "portId": "category"
+              }
+            },
+            {
+              "from": {
+                "nodeId": "dry_const",
+                "portId": "value"
+              },
+              "to": {
+                "nodeId": "$output",
+                "portId": "result"
+              }
+            }
+          ]
+        },
+        "default": {
+          "nodes": [
+            {
+              "id": "$input",
+              "inputs": [],
+              "outputs": [
+                {
+                  "id": "issue",
+                  "type": "string"
+                },
+                {
+                  "id": "number",
+                  "type": "number"
+                },
+                {
+                  "id": "codePath",
+                  "type": "string"
+                },
+                {
+                  "id": "docPath",
+                  "type": "string"
+                },
+                {
+                  "id": "message",
+                  "type": "string"
+                },
+                {
+                  "id": "branch",
+                  "type": "string"
+                }
+              ]
+            },
+            {
+              "id": "issue_triage",
+              "inputs": [
+                {
+                  "id": "issue",
+                  "type": "string"
+                }
+              ],
+              "outputs": [
+                {
+                  "id": "category",
+                  "type": "string"
+                }
+              ]
+            },
+            {
+              "id": "category_router",
+              "router": true,
+              "inputs": [
+                {
+                  "id": "condition",
+                  "type": "string"
+                },
+                {
+                  "id": "issue",
+                  "type": "string"
+                },
+                {
+                  "id": "number",
+                  "type": "number"
+                },
+                {
+                  "id": "codePath",
+                  "type": "string"
+                },
+                {
+                  "id": "docPath",
+                  "type": "string"
+                },
+                {
+                  "id": "message",
+                  "type": "string"
+                },
+                {
+                  "id": "branch",
+                  "type": "string"
+                }
+              ],
+              "outputs": [
+                {
+                  "id": "result",
+                  "type": "any"
+                }
+              ],
+              "branches": {
+                "code_request": {
+                  "nodes": [
+                    {
+                      "id": "$input",
+                      "inputs": [],
+                      "outputs": [
+                        {
+                          "id": "issue",
+                          "type": "string"
+                        },
+                        {
+                          "id": "number",
+                          "type": "number"
+                        },
+                        {
+                          "id": "codePath",
+                          "type": "string"
+                        },
+                        {
+                          "id": "message",
+                          "type": "string"
+                        },
+                        {
+                          "id": "branch",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "extract_json_block",
+                      "inputs": [
+                        {
+                          "id": "text",
+                          "type": "string"
+                        }
+                      ],
+                      "outputs": [
+                        {
+                          "id": "value",
+                          "type": "object"
+                        },
+                        {
+                          "id": "found",
+                          "type": "boolean"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "k_problem",
+                      "inputs": [],
+                      "outputs": [
+                        {
+                          "id": "value",
+                          "type": "string"
+                        }
+                      ],
+                      "constraints": {
+                        "literal": "problem"
+                      }
+                    },
+                    {
+                      "id": "k_tests",
+                      "inputs": [],
+                      "outputs": [
+                        {
+                          "id": "value",
+                          "type": "string"
+                        }
+                      ],
+                      "constraints": {
+                        "literal": "tests"
+                      }
+                    },
+                    {
+                      "id": "pluck_problem",
+                      "builtin": "pluck",
+                      "inputs": [
+                        {
+                          "id": "object",
+                          "type": "object"
+                        },
+                        {
+                          "id": "key",
+                          "type": "string"
+                        }
+                      ],
+                      "outputs": [
+                        {
+                          "id": "value",
+                          "type": "any"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "pluck_tests",
+                      "builtin": "pluck",
+                      "inputs": [
+                        {
+                          "id": "object",
+                          "type": "object"
+                        },
+                        {
+                          "id": "key",
+                          "type": "string"
+                        }
+                      ],
+                      "outputs": [
+                        {
+                          "id": "value",
+                          "type": "any"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "sys_const",
+                      "inputs": [],
+                      "outputs": [
+                        {
+                          "id": "value",
+                          "type": "string"
+                        }
+                      ],
+                      "constraints": {
+                        "literal": "Return only the JavaScript function, no explanations or markdown."
+                      }
+                    },
+                    {
+                      "id": "code_smith",
+                      "inputs": [
+                        {
+                          "id": "problem",
+                          "type": "string"
+                        },
+                        {
+                          "id": "system",
+                          "type": "string"
+                        },
+                        {
+                          "id": "tests",
+                          "type": "any"
+                        },
+                        {
+                          "id": "path",
+                          "type": "string"
+                        },
+                        {
+                          "id": "message",
+                          "type": "string"
+                        },
+                        {
+                          "id": "branch",
+                          "type": "string"
+                        }
+                      ],
+                      "outputs": [
+                        {
+                          "id": "code",
+                          "type": "string"
+                        },
+                        {
+                          "id": "summary",
+                          "type": "string"
+                        },
+                        {
+                          "id": "allPassed",
+                          "type": "boolean"
+                        },
+                        {
+                          "id": "result",
+                          "type": "any"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "evd_pack_k1",
+                      "inputs": [],
+                      "outputs": [
+                        {
+                          "id": "value",
+                          "type": "string"
+                        }
+                      ],
+                      "constraints": {
+                        "literal": "path"
+                      }
+                    },
+                    {
+                      "id": "evd_pack_k2",
+                      "inputs": [],
+                      "outputs": [
+                        {
+                          "id": "value",
+                          "type": "string"
+                        }
+                      ],
+                      "constraints": {
+                        "literal": "allPassed"
+                      }
+                    },
+                    {
+                      "id": "evd_pack_k3",
+                      "inputs": [],
+                      "outputs": [
+                        {
+                          "id": "value",
+                          "type": "string"
+                        }
+                      ],
+                      "constraints": {
+                        "literal": "summary"
+                      }
+                    },
+                    {
+                      "id": "evd_pack",
+                      "builtin": "pack",
+                      "inputs": [
+                        {
+                          "id": "key1",
+                          "type": "string"
+                        },
+                        {
+                          "id": "value1",
+                          "type": "any"
+                        },
+                        {
+                          "id": "key2",
+                          "type": "string"
+                        },
+                        {
+                          "id": "value2",
+                          "type": "any"
+                        },
+                        {
+                          "id": "key3",
+                          "type": "string"
+                        },
+                        {
+                          "id": "value3",
+                          "type": "any"
+                        }
+                      ],
+                      "outputs": [
+                        {
+                          "id": "object",
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "tpl_const",
+                      "inputs": [],
+                      "outputs": [
+                        {
+                          "id": "value",
+                          "type": "string"
+                        }
+                      ],
+                      "constraints": {
+                        "literal": "Delivered by the inbox sweep to `{path}`.\n\n**Verification:** allPassed={allPassed}\n\n```\n{summary}\n```\n\n*Autonomous delivery with receipts — a human reviews before close.*"
+                      }
+                    },
+                    {
+                      "id": "template",
+                      "inputs": [
+                        {
+                          "id": "template",
+                          "type": "string"
+                        },
+                        {
+                          "id": "values",
+                          "type": "object"
+                        }
+                      ],
+                      "outputs": [
+                        {
+                          "id": "text",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "owner_const",
+                      "inputs": [],
+                      "outputs": [
+                        {
+                          "id": "value",
+                          "type": "string"
+                        }
+                      ],
+                      "constraints": {
+                        "literal": "OnliestWizard"
+                      }
+                    },
+                    {
+                      "id": "repo_const",
+                      "inputs": [],
+                      "outputs": [
+                        {
+                          "id": "value",
+                          "type": "string"
+                        }
+                      ],
+                      "constraints": {
+                        "literal": "Plant_Playground"
+                      }
+                    },
+                    {
+                      "id": "cmt_pack_k1",
+                      "inputs": [],
+                      "outputs": [
+                        {
+                          "id": "value",
+                          "type": "string"
+                        }
+                      ],
+                      "constraints": {
+                        "literal": "owner"
+                      }
+                    },
+                    {
+                      "id": "cmt_pack_k2",
+                      "inputs": [],
+                      "outputs": [
+                        {
+                          "id": "value",
+                          "type": "string"
+                        }
+                      ],
+                      "constraints": {
+                        "literal": "repo"
+                      }
+                    },
+                    {
+                      "id": "cmt_pack_k3",
+                      "inputs": [],
+                      "outputs": [
+                        {
+                          "id": "value",
+                          "type": "string"
+                        }
+                      ],
+                      "constraints": {
+                        "literal": "issue_number"
+                      }
+                    },
+                    {
+                      "id": "cmt_pack_k4",
+                      "inputs": [],
+                      "outputs": [
+                        {
+                          "id": "value",
+                          "type": "string"
+                        }
+                      ],
+                      "constraints": {
+                        "literal": "body"
+                      }
+                    },
+                    {
+                      "id": "cmt_pack",
+                      "builtin": "pack",
+                      "inputs": [
+                        {
+                          "id": "key1",
+                          "type": "string"
+                        },
+                        {
+                          "id": "value1",
+                          "type": "any"
+                        },
+                        {
+                          "id": "key2",
+                          "type": "string"
+                        },
+                        {
+                          "id": "value2",
+                          "type": "any"
+                        },
+                        {
+                          "id": "key3",
+                          "type": "string"
+                        },
+                        {
+                          "id": "value3",
+                          "type": "any"
+                        },
+                        {
+                          "id": "key4",
+                          "type": "string"
+                        },
+                        {
+                          "id": "value4",
+                          "type": "any"
+                        }
+                      ],
+                      "outputs": [
+                        {
+                          "id": "object",
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "post_comment",
+                      "builtin": "playground__add_issue_comment",
+                      "inputs": [
+                        {
+                          "id": "params",
+                          "type": "object"
+                        }
+                      ],
+                      "outputs": [
+                        {
+                          "id": "result",
+                          "type": "any"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "$output",
+                      "inputs": [
+                        {
+                          "id": "result",
+                          "type": "any"
+                        }
+                      ],
+                      "outputs": []
+                    }
+                  ],
+                  "edges": [
+                    {
+                      "from": {
+                        "nodeId": "$input",
+                        "portId": "issue"
+                      },
+                      "to": {
+                        "nodeId": "extract_json_block",
+                        "portId": "text"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "extract_json_block",
+                        "portId": "value"
+                      },
+                      "to": {
+                        "nodeId": "pluck_problem",
+                        "portId": "object"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "extract_json_block",
+                        "portId": "value"
+                      },
+                      "to": {
+                        "nodeId": "pluck_tests",
+                        "portId": "object"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "k_problem",
+                        "portId": "value"
+                      },
+                      "to": {
+                        "nodeId": "pluck_problem",
+                        "portId": "key"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "k_tests",
+                        "portId": "value"
+                      },
+                      "to": {
+                        "nodeId": "pluck_tests",
+                        "portId": "key"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "pluck_problem",
+                        "portId": "value"
+                      },
+                      "to": {
+                        "nodeId": "code_smith",
+                        "portId": "problem"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "pluck_tests",
+                        "portId": "value"
+                      },
+                      "to": {
+                        "nodeId": "code_smith",
+                        "portId": "tests"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "sys_const",
+                        "portId": "value"
+                      },
+                      "to": {
+                        "nodeId": "code_smith",
+                        "portId": "system"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "$input",
+                        "portId": "codePath"
+                      },
+                      "to": {
+                        "nodeId": "code_smith",
+                        "portId": "path"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "$input",
+                        "portId": "message"
+                      },
+                      "to": {
+                        "nodeId": "code_smith",
+                        "portId": "message"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "$input",
+                        "portId": "branch"
+                      },
+                      "to": {
+                        "nodeId": "code_smith",
+                        "portId": "branch"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "evd_pack_k1",
+                        "portId": "value"
+                      },
+                      "to": {
+                        "nodeId": "evd_pack",
+                        "portId": "key1"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "evd_pack_k2",
+                        "portId": "value"
+                      },
+                      "to": {
+                        "nodeId": "evd_pack",
+                        "portId": "key2"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "evd_pack_k3",
+                        "portId": "value"
+                      },
+                      "to": {
+                        "nodeId": "evd_pack",
+                        "portId": "key3"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "$input",
+                        "portId": "codePath"
+                      },
+                      "to": {
+                        "nodeId": "evd_pack",
+                        "portId": "value1"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "code_smith",
+                        "portId": "allPassed"
+                      },
+                      "to": {
+                        "nodeId": "evd_pack",
+                        "portId": "value2"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "code_smith",
+                        "portId": "summary"
+                      },
+                      "to": {
+                        "nodeId": "evd_pack",
+                        "portId": "value3"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "tpl_const",
+                        "portId": "value"
+                      },
+                      "to": {
+                        "nodeId": "template",
+                        "portId": "template"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "evd_pack",
+                        "portId": "object"
+                      },
+                      "to": {
+                        "nodeId": "template",
+                        "portId": "values"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "cmt_pack_k1",
+                        "portId": "value"
+                      },
+                      "to": {
+                        "nodeId": "cmt_pack",
+                        "portId": "key1"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "cmt_pack_k2",
+                        "portId": "value"
+                      },
+                      "to": {
+                        "nodeId": "cmt_pack",
+                        "portId": "key2"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "cmt_pack_k3",
+                        "portId": "value"
+                      },
+                      "to": {
+                        "nodeId": "cmt_pack",
+                        "portId": "key3"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "cmt_pack_k4",
+                        "portId": "value"
+                      },
+                      "to": {
+                        "nodeId": "cmt_pack",
+                        "portId": "key4"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "owner_const",
+                        "portId": "value"
+                      },
+                      "to": {
+                        "nodeId": "cmt_pack",
+                        "portId": "value1"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "repo_const",
+                        "portId": "value"
+                      },
+                      "to": {
+                        "nodeId": "cmt_pack",
+                        "portId": "value2"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "$input",
+                        "portId": "number"
+                      },
+                      "to": {
+                        "nodeId": "cmt_pack",
+                        "portId": "value3"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "template",
+                        "portId": "text"
+                      },
+                      "to": {
+                        "nodeId": "cmt_pack",
+                        "portId": "value4"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "cmt_pack",
+                        "portId": "object"
+                      },
+                      "to": {
+                        "nodeId": "post_comment",
+                        "portId": "params"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "post_comment",
+                        "portId": "result"
+                      },
+                      "to": {
+                        "nodeId": "$output",
+                        "portId": "result"
+                      }
+                    }
+                  ]
+                },
+                "proposal": {
+                  "nodes": [
+                    {
+                      "id": "$input",
+                      "inputs": [],
+                      "outputs": [
+                        {
+                          "id": "issue",
+                          "type": "string"
+                        },
+                        {
+                          "id": "number",
+                          "type": "number"
+                        },
+                        {
+                          "id": "docPath",
+                          "type": "string"
+                        },
+                        {
+                          "id": "message",
+                          "type": "string"
+                        },
+                        {
+                          "id": "branch",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "inbox_worker",
+                      "inputs": [
+                        {
+                          "id": "proposal",
+                          "type": "string"
+                        },
+                        {
+                          "id": "path",
+                          "type": "string"
+                        },
+                        {
+                          "id": "message",
+                          "type": "string"
+                        },
+                        {
+                          "id": "branch",
+                          "type": "string"
+                        }
+                      ],
+                      "outputs": [
+                        {
+                          "id": "result",
+                          "type": "any"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "evd_pack_k1",
+                      "inputs": [],
+                      "outputs": [
+                        {
+                          "id": "value",
+                          "type": "string"
+                        }
+                      ],
+                      "constraints": {
+                        "literal": "path"
+                      }
+                    },
+                    {
+                      "id": "evd_pack",
+                      "builtin": "pack",
+                      "inputs": [
+                        {
+                          "id": "key1",
+                          "type": "string"
+                        },
+                        {
+                          "id": "value1",
+                          "type": "any"
+                        }
+                      ],
+                      "outputs": [
+                        {
+                          "id": "object",
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "tpl_const",
+                      "inputs": [],
+                      "outputs": [
+                        {
+                          "id": "value",
+                          "type": "string"
+                        }
+                      ],
+                      "constraints": {
+                        "literal": "Prototype committed by the inbox sweep to `{path}`.\n\n*Autonomous delivery with receipts — a human reviews before close.*"
+                      }
+                    },
+                    {
+                      "id": "template",
+                      "inputs": [
+                        {
+                          "id": "template",
+                          "type": "string"
+                        },
+                        {
+                          "id": "values",
+                          "type": "object"
+                        }
+                      ],
+                      "outputs": [
+                        {
+                          "id": "text",
+                          "type": "string"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "owner_const",
+                      "inputs": [],
+                      "outputs": [
+                        {
+                          "id": "value",
+                          "type": "string"
+                        }
+                      ],
+                      "constraints": {
+                        "literal": "OnliestWizard"
+                      }
+                    },
+                    {
+                      "id": "repo_const",
+                      "inputs": [],
+                      "outputs": [
+                        {
+                          "id": "value",
+                          "type": "string"
+                        }
+                      ],
+                      "constraints": {
+                        "literal": "Plant_Playground"
+                      }
+                    },
+                    {
+                      "id": "cmt_pack_k1",
+                      "inputs": [],
+                      "outputs": [
+                        {
+                          "id": "value",
+                          "type": "string"
+                        }
+                      ],
+                      "constraints": {
+                        "literal": "owner"
+                      }
+                    },
+                    {
+                      "id": "cmt_pack_k2",
+                      "inputs": [],
+                      "outputs": [
+                        {
+                          "id": "value",
+                          "type": "string"
+                        }
+                      ],
+                      "constraints": {
+                        "literal": "repo"
+                      }
+                    },
+                    {
+                      "id": "cmt_pack_k3",
+                      "inputs": [],
+                      "outputs": [
+                        {
+                          "id": "value",
+                          "type": "string"
+                        }
+                      ],
+                      "constraints": {
+                        "literal": "issue_number"
+                      }
+                    },
+                    {
+                      "id": "cmt_pack_k4",
+                      "inputs": [],
+                      "outputs": [
+                        {
+                          "id": "value",
+                          "type": "string"
+                        }
+                      ],
+                      "constraints": {
+                        "literal": "body"
+                      }
+                    },
+                    {
+                      "id": "cmt_pack",
+                      "builtin": "pack",
+                      "inputs": [
+                        {
+                          "id": "key1",
+                          "type": "string"
+                        },
+                        {
+                          "id": "value1",
+                          "type": "any"
+                        },
+                        {
+                          "id": "key2",
+                          "type": "string"
+                        },
+                        {
+                          "id": "value2",
+                          "type": "any"
+                        },
+                        {
+                          "id": "key3",
+                          "type": "string"
+                        },
+                        {
+                          "id": "value3",
+                          "type": "any"
+                        },
+                        {
+                          "id": "key4",
+                          "type": "string"
+                        },
+                        {
+                          "id": "value4",
+                          "type": "any"
+                        }
+                      ],
+                      "outputs": [
+                        {
+                          "id": "object",
+                          "type": "object"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "post_comment",
+                      "builtin": "playground__add_issue_comment",
+                      "inputs": [
+                        {
+                          "id": "params",
+                          "type": "object"
+                        }
+                      ],
+                      "outputs": [
+                        {
+                          "id": "result",
+                          "type": "any"
+                        }
+                      ]
+                    },
+                    {
+                      "id": "$output",
+                      "inputs": [
+                        {
+                          "id": "result",
+                          "type": "any"
+                        }
+                      ],
+                      "outputs": []
+                    }
+                  ],
+                  "edges": [
+                    {
+                      "from": {
+                        "nodeId": "$input",
+                        "portId": "issue"
+                      },
+                      "to": {
+                        "nodeId": "inbox_worker",
+                        "portId": "proposal"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "$input",
+                        "portId": "docPath"
+                      },
+                      "to": {
+                        "nodeId": "inbox_worker",
+                        "portId": "path"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "$input",
+                        "portId": "message"
+                      },
+                      "to": {
+                        "nodeId": "inbox_worker",
+                        "portId": "message"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "$input",
+                        "portId": "branch"
+                      },
+                      "to": {
+                        "nodeId": "inbox_worker",
+                        "portId": "branch"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "evd_pack_k1",
+                        "portId": "value"
+                      },
+                      "to": {
+                        "nodeId": "evd_pack",
+                        "portId": "key1"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "$input",
+                        "portId": "docPath"
+                      },
+                      "to": {
+                        "nodeId": "evd_pack",
+                        "portId": "value1"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "tpl_const",
+                        "portId": "value"
+                      },
+                      "to": {
+                        "nodeId": "template",
+                        "portId": "template"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "evd_pack",
+                        "portId": "object"
+                      },
+                      "to": {
+                        "nodeId": "template",
+                        "portId": "values"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "cmt_pack_k1",
+                        "portId": "value"
+                      },
+                      "to": {
+                        "nodeId": "cmt_pack",
+                        "portId": "key1"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "cmt_pack_k2",
+                        "portId": "value"
+                      },
+                      "to": {
+                        "nodeId": "cmt_pack",
+                        "portId": "key2"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "cmt_pack_k3",
+                        "portId": "value"
+                      },
+                      "to": {
+                        "nodeId": "cmt_pack",
+                        "portId": "key3"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "cmt_pack_k4",
+                        "portId": "value"
+                      },
+                      "to": {
+                        "nodeId": "cmt_pack",
+                        "portId": "key4"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "owner_const",
+                        "portId": "value"
+                      },
+                      "to": {
+                        "nodeId": "cmt_pack",
+                        "portId": "value1"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "repo_const",
+                        "portId": "value"
+                      },
+                      "to": {
+                        "nodeId": "cmt_pack",
+                        "portId": "value2"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "$input",
+                        "portId": "number"
+                      },
+                      "to": {
+                        "nodeId": "cmt_pack",
+                        "portId": "value3"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "template",
+                        "portId": "text"
+                      },
+                      "to": {
+                        "nodeId": "cmt_pack",
+                        "portId": "value4"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "cmt_pack",
+                        "portId": "object"
+                      },
+                      "to": {
+                        "nodeId": "post_comment",
+                        "portId": "params"
+                      }
+                    },
+                    {
+                      "from": {
+                        "nodeId": "post_comment",
+                        "portId": "result"
+                      },
+                      "to": {
+                        "nodeId": "$output",
+                        "portId": "result"
+                      }
+                    }
+                  ]
+                },
+                "default": {
+                  "nodes": [
+                    {
+                      "id": "$input",
+                      "inputs": [],
+                      "outputs": []
+                    },
+                    {
+                      "id": "nh_const",
+                      "inputs": [],
+                      "outputs": [
+                        {
+                          "id": "value",
+                          "type": "string"
+                        }
+                      ],
+                      "constraints": {
+                        "literal": "needs-human"
+                      }
+                    },
+                    {
+                      "id": "$output",
+                      "inputs": [
+                        {
+                          "id": "result",
+                          "type": "any"
+                        }
+                      ],
+                      "outputs": []
+                    }
+                  ],
+                  "edges": [
+                    {
+                      "from": {
+                        "nodeId": "nh_const",
+                        "portId": "value"
+                      },
+                      "to": {
+                        "nodeId": "$output",
+                        "portId": "result"
+                      }
+                    }
+                  ]
+                }
+              }
+            },
+            {
+              "id": "$output",
+              "inputs": [
+                {
+                  "id": "category",
+                  "type": "string"
+                },
+                {
+                  "id": "result",
+                  "type": "any"
+                }
+              ],
+              "outputs": []
+            }
+          ],
+          "edges": [
+            {
+              "from": {
+                "nodeId": "$input",
+                "portId": "issue"
+              },
+              "to": {
+                "nodeId": "issue_triage",
+                "portId": "issue"
+              }
+            },
+            {
+              "from": {
+                "nodeId": "issue_triage",
+                "portId": "category"
+              },
+              "to": {
+                "nodeId": "category_router",
+                "portId": "condition"
+              }
+            },
+            {
+              "from": {
+                "nodeId": "$input",
+                "portId": "issue"
+              },
+              "to": {
+                "nodeId": "category_router",
+                "portId": "issue"
+              }
+            },
+            {
+              "from": {
+                "nodeId": "$input",
+                "portId": "number"
+              },
+              "to": {
+                "nodeId": "category_router",
+                "portId": "number"
+              }
+            },
+            {
+              "from": {
+                "nodeId": "$input",
+                "portId": "codePath"
+              },
+              "to": {
+                "nodeId": "category_router",
+                "portId": "codePath"
+              }
+            },
+            {
+              "from": {
+                "nodeId": "$input",
+                "portId": "docPath"
+              },
+              "to": {
+                "nodeId": "category_router",
+                "portId": "docPath"
+              }
+            },
+            {
+              "from": {
+                "nodeId": "$input",
+                "portId": "message"
+              },
+              "to": {
+                "nodeId": "category_router",
+                "portId": "message"
+              }
+            },
+            {
+              "from": {
+                "nodeId": "$input",
+                "portId": "branch"
+              },
+              "to": {
+                "nodeId": "category_router",
+                "portId": "branch"
+              }
+            },
+            {
+              "from": {
+                "nodeId": "issue_triage",
+                "portId": "category"
+              },
+              "to": {
+                "nodeId": "$output",
+                "portId": "category"
+              }
+            },
+            {
+              "from": {
+                "nodeId": "category_router",
+                "portId": "result"
+              },
+              "to": {
+                "nodeId": "$output",
+                "portId": "result"
+              }
+            }
+          ]
+        }
+      }
+    },
+    {
+      "id": "$output",
+      "inputs": [
+        {
+          "id": "category",
+          "type": "string"
+        },
+        {
+          "id": "result",
+          "type": "any"
+        }
+      ],
+      "outputs": []
+    }
+  ],
+  "edges": [
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "dryRun"
+      },
+      "to": {
+        "nodeId": "mode_router",
+        "portId": "condition"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "issue"
+      },
+      "to": {
+        "nodeId": "mode_router",
+        "portId": "issue"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "number"
+      },
+      "to": {
+        "nodeId": "mode_router",
+        "portId": "number"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "codePath"
+      },
+      "to": {
+        "nodeId": "mode_router",
+        "portId": "codePath"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "docPath"
+      },
+      "to": {
+        "nodeId": "mode_router",
+        "portId": "docPath"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "message"
+      },
+      "to": {
+        "nodeId": "mode_router",
+        "portId": "message"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "$input",
+        "portId": "branch"
+      },
+      "to": {
+        "nodeId": "mode_router",
+        "portId": "branch"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "mode_router",
+        "portId": "category"
+      },
+      "to": {
+        "nodeId": "$output",
+        "portId": "category"
+      }
+    },
+    {
+      "from": {
+        "nodeId": "mode_router",
+        "portId": "result"
+      },
+      "to": {
+        "nodeId": "$output",
+        "portId": "result"
+      }
+    }
+  ],
+  "tests": [
+    {
+      "name": "dry run triages without writing",
+      "inputs": {
+        "issue": "TITLE: Proposal: nightly garden report\n\nBODY: I propose regenerating STATUS.md on a schedule so the front page never goes stale.",
+        "dryRun": true,
+        "number": 0,
+        "codePath": "planted/probe.js",
+        "docPath": "proposals/probe.md",
+        "message": "probe",
+        "branch": "main"
+      },
+      "expect": [
+        {
+          "port": "category",
+          "matches": "^proposal\\s*$"
+        },
+        {
+          "port": "result",
+          "equals": "dry-run"
+        }
+      ]
+    }
+  ],
+  "specVersion": "1"
+}

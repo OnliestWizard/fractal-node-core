@@ -1,6 +1,6 @@
 # Plant — skill library status
 
-**8 skills · 25 saved versions · 8 contract tests** · regenerated 2026-06-11 16:47 UTC
+**9 skills · 26 saved versions · 9 contract tests** · regenerated 2026-06-11 17:37 UTC
 
 Every skill below passed its contract tests at save time — `save_graph` refuses a failing graph, so presence in this table is the evidence.
 
@@ -12,6 +12,7 @@ Every skill below passed its contract tests at save time — `save_graph` refuse
 | `code_smith` | Write code for a problem with a judge loop, verify it against the given tests, commit it to the sandbox, and return the code with its test evidence. | `(problem, system, tests, path, message, branch) → (code, summary, allPassed, result)` | 1 | 1 | 2026-06-10 |
 | `haiku_writer` | Write a haiku about a topic. Returns the haiku text. | `(topic) → (haiku)` | 1 | 3 | 2026-06-11 |
 | `inbox_worker` | Turn a design proposal into a prototype markdown document and commit it to the sandbox repo. | `(proposal, path, message, branch) → (result)` | 1 | 1 | 2026-06-10 |
+| `issue_handler` | Handle one GitHub issue for the inbox sweep. Classifies via issue_triage, then in live mode delivers: code_request → code_smith (judge loop, tested commit) + evidence comment; proposal → inbox_worker prototype + comment; anything else → "needs-human". dryRun=true classifies only — no writes. Returns category and result. | `(issue, dryRun, number, codePath, docPath, message, branch) → (category, result)` | 1 | 1 | 2026-06-11 |
 | `issue_triage` | Classify a GitHub issue (title + body as one string) for the inbox sweep. Returns category: code_request \| proposal \| other. | `(issue) → (category)` | 3 | 1 | 2026-06-11 |
 | `planted_child` | Write a haiku about a topic using draft_writer. | `(topic) → (haiku)` | 0 | 6 | 2026-06-10 |
 | `playground_writer` | Write (create or update) a file in the OnliestWizard/Plant_Playground GitHub repo, committing directly to the given branch. Returns the GitHub API result JSON. | `(path, content, message, branch) → (result)` | 1 | 11 | 2026-06-10 |
@@ -19,6 +20,7 @@ Every skill below passed its contract tests at save time — `save_graph` refuse
 
 ## Recent saves
 
+- 2026-06-11 17:32 — `issue_handler` @ `8a9e7438`
 - 2026-06-11 16:39 — `issue_triage` @ `83f84212`
 - 2026-06-11 16:06 — `haiku_writer` @ `fce92f9f`
 - 2026-06-10 18:24 — `code_smith` @ `01b62524`
@@ -28,9 +30,8 @@ Every skill below passed its contract tests at save time — `save_graph` refuse
 - 2026-06-10 14:04 — `haiku_writer` @ `3c3e4d1b`
 - 2026-06-10 13:55 — `planted_child` @ `7a3b24af`
 - 2026-06-10 13:55 — `code_improve` @ `7240a846`
-- 2026-06-10 13:55 — `playground_writer` @ `b2e5af1b`
 
-*Last heartbeat: 2026-06-11 16:39 UTC*
+*Last heartbeat: 2026-06-11 17:32 UTC*
 
 ## Recent deliveries
 

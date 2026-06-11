@@ -230,6 +230,28 @@ async function runBuiltin(nodeId: string, inputs: Record<string, unknown>): Prom
       return { object: obj }
     }
 
+    case 'template': {
+      // {key} placeholders fill from values; unknown keys stay visible so a
+      // mis-wired template reads as broken instead of silently blank
+      const tpl = String(inputs.template ?? '')
+      const values = (inputs.values && typeof inputs.values === 'object')
+        ? inputs.values as Record<string, unknown>
+        : {}
+      const text = tpl.replace(/\{(\w+)\}/g, (whole, key) => key in values ? String(values[key]) : whole)
+      return { text }
+    }
+
+    case 'extract_json_block': {
+      const text = String(inputs.text ?? '')
+      const block = text.match(/```json\s*([\s\S]*?)```/)
+      if (!block) return { value: {}, found: false }
+      try {
+        return { value: JSON.parse(block[1]), found: true }
+      } catch {
+        return { value: {}, found: false }
+      }
+    }
+
     case 'pluck': {
       const obj = (inputs.object ?? {}) as Record<string, unknown>
       return { value: obj[String(inputs.key ?? '')] }

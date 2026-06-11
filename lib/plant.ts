@@ -107,6 +107,18 @@ const BUILTIN_CATALOG = [
     outputs: [{ id: 'value', type: 'any' }],
   },
   {
+    id: 'template',
+    description: 'Fill {key} placeholders in a template string with fields from a values object (build the object with pack). Use to compose messages, paths, or comment bodies from upstream outputs. Unknown placeholders are left as-is.',
+    inputs:  [{ id: 'template', type: 'string' }, { id: 'values', type: 'object' }],
+    outputs: [{ id: 'text', type: 'string' }],
+  },
+  {
+    id: 'extract_json_block',
+    description: 'Extract and parse the first fenced ```json block from a text (e.g. a spec block in a GitHub issue body). Returns the parsed object and a found flag (found=false when there is no block or it is not valid JSON).',
+    inputs:  [{ id: 'text', type: 'string' }],
+    outputs: [{ id: 'value', type: 'object' }, { id: 'found', type: 'boolean' }],
+  },
+  {
     id: 'save_graph',
     description: 'Save a graph to the graph library by name. Use after plant or after a successful execution to persist a graph for reuse. Name must be alphanumeric with underscores/hyphens. Every save is versioned automatically; returns the version id. If the graph carries contract tests (a top-level "tests" array), they run first and a failing graph is REFUSED a version; pass skipTests=true to bypass. The tested output reports how many cases ran.',
     inputs:  [{ id: 'name', type: 'string' }, { id: 'graph', type: 'object' }, { id: 'skipTests', type: 'boolean', optional: true }],

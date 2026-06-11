@@ -1,5 +1,34 @@
 # Session State — fractal-node-core
 
+## Heartbeat 2/n: issue_handler ✓ + two text builtins (2026-06-11)
+
+**New builtins** (the string ops the library kept tripping on): `template`
+({key} fill from a pack'd values object; unknown keys stay visible so
+mis-wiring reads as broken, not blank) and `extract_json_block` (first
+fenced ```json block → parsed object + found flag; invalid JSON = found
+false, never throws). Both in Plant's catalog. tests/textBuiltins.test.ts.
+
+**issue_handler** — the per-issue unit, HAND-AUTHORED via a build script
+(nested routers + 4-key packs are beyond a reliable single plant pass;
+scratch/build_issue_handler.ts constructs it, validateGraph gates the
+wiring, saveSkillThroughGate gates behavior). Structure: mode_router on
+dryRun (condition port typed `any` — validator rejects boolean→string,
+runtime coerces) → dry branch = issue_triage only, result "dry-run";
+live branch = issue_triage → category_router → code_request branch
+(extract_json_block → pluck problem/tests → code_smith → template
+evidence → playground__add_issue_comment), proposal branch (inbox_worker
+→ comment), default branch (literal "needs-human", no writes). Contract
+test runs the DRY path only (side-effect-free gate probe); the live path
+gets verified on a controlled live issue at sweep time.
+
+Gate passed (tested=1, version 8a9e7438) — nested skill dispatch inside a
+router branch worked at gate time. **Handler dry-run over the real queue:
+5/5 routed correctly** (#5 code_request, #4 proposal, #1–3 other),
+<$0.01. Library = 9 skills, 277 tests (26 files).
+
+Next: inbox_sweep graph (list+filter+forEach handler+report), labels,
+one controlled LIVE delivery, then pulse.ts.
+
 ## Heartbeat 1/n: issue_triage skill ✓ (2026-06-11)
 
 First piece of the inbox sweep, built the house way: Plant designed the
