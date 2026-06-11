@@ -1,5 +1,20 @@
 # Session State — fractal-node-core
 
+## Screenshot scrubbed ✓ (2026-06-11) — PRE-FLIGHT COMPLETE
+
+`Screenshot_20260611_044931_Google.jpg` (the crash-recovery photo of the
+desktop) removed from ALL history via `python -m git_filter_repo
+--invert-paths --path <file> --force` (filter-repo is installed as a Python
+module here, not a git subcommand). Verified zero jpg objects via
+rev-list --objects --all; origin re-added (filter-repo strips it);
+force-pushed. **All commit hashes from "Add files via upload" onward
+changed again** — food-word subjects still identify commits; any other
+clone must be re-cloned. Local copy preserved in scratch/ (gitignored).
+
+**The entire pre-flight is now done**: gauntlet 4/4 (fresh-clone, failure
+drills, cost honesty, editor verdict) + history clean. The visibility flip
+is purely the user's button.
+
 ## Token meter ✓ (2026-06-11) — cost is a receipt
 
 `lib/llm-usage.ts`: per-model accumulator fed by all 5 OpenAI call sites
