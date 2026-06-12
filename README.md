@@ -47,6 +47,7 @@ built into the substrate, not bolted on outside:
 | **Failure → test** | a failed run's trace auto-drafts a contract test (`draft_test`) — the library compounds lessons, not just skills |
 | **Margins** | `annotate.ts` attaches notes to past commits via `git notes` — hindsight without history rewriting; rendered to `ANNOTATIONS.md` |
 | **Forensics** | `bisect.ts` binary-searches a graph's git history for the first version failing (or passing) today's contract tests — no checkout, O(log n) probes; `--annotate` writes the verdict into the margins |
+| **Constitution** | `constitution.json` declares human-only territory; the unattended lane's MCP pool refuses guarded writes into it before they reach the network (`CONSTITUTION.md` has the full law) |
 | **Cost** | every LLM call is metered; runs print their spend and stamp it into the trace |
 
 And the fractal property: a node's subgraph is the same type as the graph it
@@ -94,7 +95,10 @@ With the sandbox configured, the system also runs **unattended**:
 `--live` delivers — code requests get implemented, tested, committed, and
 answered with evidence), and `npx tsx pulse.ts --live` does it on a timer.
 Owner-authored issues only, label state machine (stale claims are reaped
-to a human, never retried), budget-capped via the token meter.
+to a human, never retried), budget-capped via the token meter, and governed
+by the constitution: `constitution.json` marks paths like `.github/**` and
+the sandbox README as human-only, and the sweep's tool pool refuses writes
+into them structurally — see `CONSTITUTION.md`.
 
 This repo runs that heartbeat as a **GitHub Actions cron**
 (`.github/workflows/pulse.yml`, every 30 minutes): file an issue in the

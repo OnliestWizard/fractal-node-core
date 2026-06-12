@@ -1,5 +1,57 @@
 # Session State — fractal-node-core
 
+## Constitution ✓ (2026-06-12) — path sovereignty for the unattended lane
+
+Third and last build from the GitHub-substrate brainstorm. Key design
+realization: GitHub-side enforcement (CODEOWNERS / rulesets) cannot
+distinguish the agent from the owner — the pulse authenticates with the
+owner's PAT, so to GitHub they are the same citizen. The layer that CAN
+tell them apart is the engine rail, at the one choke point every write
+passes: pool.callTool.
+
+- **constitution.json** — the machine-readable law: guardedTools (the
+  playground write tools) + protected territories, each rule carrying its
+  why (receipts apply to law too). Protected: `.github/**` (an agent that
+  can edit its own cron can grant itself time), README.md (clobbered once
+  by the sabotage demo), constitution files (the law may not amend
+  itself). planted/proposals/probes/STATUS.md stay deliberately free.
+- **lib/constitution.ts** — loadConstitution (missing = no law, owner lane
+  is the human's authority; CORRUPT = throws, a law that silently fails
+  open is the vulnerability), glob matcher (`**` any depth, `*` segment,
+  separator/./normalization), collectPathArgs (every `path` property at
+  any depth — covers create_or_update_file and push_files[].path with no
+  per-tool schemas), assertConstitutional (fail CLOSED: guarded tool with
+  no readable path is refused), constitutionalPool (wraps McpPool's
+  4-method surface; check runs BEFORE delegation so refused writes never
+  spawn a server). ZERO engine changes — the law sits between the mind
+  and the world.
+- **Wired into sweep.ts + pulse.ts** (after pool.connect): law present →
+  wrapped pool + "constitution active" banner; absent → explicit
+  "running UNGOVERNED" warning. Actions runner has constitution.json in
+  its checkout → the cron is governed automatically.
+- **CONSTITUTION.md** — the human-readable law: territories, the four
+  enforcement layers (token split = outer wall; engine rail = the only
+  layer that distinguishes agent-Kadie from human-Kadie; CODEOWNERS =
+  declarative; optional push ruleset = the user's button, with the honest
+  PAT-identity caveat). Amendment = human hand-edit in core, which the
+  write token cannot reach. `.github/CODEOWNERS` added (`* @OnliestWizard`).
+- **Live rail proof** (scratch/constitution_live_proof.ts, gitignored):
+  three coup attempts via the REAL wrapped pool — pulse.yml, README.md,
+  constitution.json — all refused with reasons cited, BEFORE any server
+  spawned; then probes/constitution-probe.md delivered to free territory
+  through the same pool (after one npx cold-start timeout + retry, the
+  documented pattern). The rail distinguishes exactly what GitHub's
+  identity model can't.
+- tests/constitution.test.ts (11 tests, no keys): glob matcher, corrupt/
+  malformed/reasonless law refusal, path collection, guarded/unguarded/
+  wildcard/fail-closed, pool wrapper, and end-to-end engine integration
+  (blocked write → error isolation, $output skipped; free write
+  delegates). 327 tests (30 files), typecheck clean.
+
+The brainstorm is fully built: Margins (the now comments on the then),
+Forensics (bisect finds the moment, notes record it), Constitution (the
+law the governed cannot amend). All three: zero new infrastructure.
+
 ## Forensics ✓ (2026-06-12) — bisect a graph's history, no checkout
 
 Second build from the GitHub-substrate brainstorm. Deliberately NOT `git

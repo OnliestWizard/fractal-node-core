@@ -12,6 +12,7 @@ config({ path: '.env.local' })
 import { McpPool } from './lib/mcp-pool'
 import { loadGraph } from './lib/graph-store'
 import { sweepInbox, formatSweepReport } from './lib/inbox-sweep'
+import { loadConstitution, constitutionalPool } from './lib/constitution'
 
 function parseArgs(argv: string[]) {
   const out: Record<string, string | true> = {}
@@ -44,8 +45,14 @@ async function main() {
     process.exit(1)
   }
 
-  const pool = new McpPool()
-  await pool.connect()
+  const rawPool = new McpPool()
+  await rawPool.connect()
+
+  const law = loadConstitution()
+  const pool = law ? constitutionalPool(rawPool, law) : rawPool
+  console.log(law
+    ? `constitution active — ${law.protected.length} protected territories, ${law.guardedTools.length} guarded tools`
+    : 'no constitution.json found — the unattended lane is running UNGOVERNED')
 
   const report = await sweepInbox(pool, handler, {
     owner,

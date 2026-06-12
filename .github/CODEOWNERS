@@ -1,0 +1,4 @@
+# Every path in the core repo is human territory — the agent's write token
+# cannot reach this repo at all (the outer wall); this file makes the
+# authority declarative as well as structural. See CONSTITUTION.md.
+* @OnliestWizard

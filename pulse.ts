@@ -21,6 +21,7 @@ import { sweepInbox, formatSweepReport } from './lib/inbox-sweep'
 import { collectStatus, renderStatusMarkdown } from './lib/status-report'
 import { fetchDeliveries, pushStatusFile } from './lib/status-push'
 import { usageSummary, formatCost } from './lib/llm-usage'
+import { loadConstitution, constitutionalPool } from './lib/constitution'
 
 function parseArgs(argv: string[]) {
   const out: Record<string, string | true> = {}
@@ -91,8 +92,14 @@ async function main() {
 
   console.log(`pulse: ${live ? 'LIVE' : 'dry-run'} · every ${Math.round(intervalMs / 1000)}s · total budget ${formatCost(totalBudgetUsd)}${maxBeats !== Infinity ? ` · ${maxBeats} beat(s)` : ''}`)
 
-  const pool = new McpPool()
-  await pool.connect()
+  const rawPool = new McpPool()
+  await rawPool.connect()
+
+  const law = loadConstitution()
+  const pool = law ? constitutionalPool(rawPool, law) : rawPool
+  console.log(law
+    ? `constitution active — ${law.protected.length} protected territories, ${law.guardedTools.length} guarded tools`
+    : 'no constitution.json found — the unattended lane is running UNGOVERNED')
 
   let beats = 0
   let delivered = 0

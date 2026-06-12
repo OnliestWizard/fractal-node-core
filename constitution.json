@@ -1,0 +1,22 @@
+{
+  "version": 1,
+  "guardedTools": [
+    "playground__create_or_update_file",
+    "playground__push_files",
+    "playground__delete_file"
+  ],
+  "protected": [
+    {
+      "paths": [".github/**"],
+      "why": "the heartbeat — workflows and CODEOWNERS are law, not territory; an agent that can edit its own cron can grant itself time"
+    },
+    {
+      "paths": ["README.md"],
+      "why": "the front door — clobbered once already by the sabotage demo (2026-06-10); the unattended lane doesn't get a second chance"
+    },
+    {
+      "paths": ["constitution.json", "CONSTITUTION.md"],
+      "why": "the law may not amend itself — changes are made by a human, in the core repo, which the write token cannot reach"
+    }
+  ]
+}
