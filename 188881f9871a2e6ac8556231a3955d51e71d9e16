@@ -1,1 +1,3 @@
 {"ts":"2026-06-12T10:21:31.330Z","kind":"correction","message":"This version's contract was only 'haiku exists' — it let a 2KB recursion essay ship as a haiku. Corrected in salak (df16d03): expectation ops lineCount=3 + maxLength=120, re-gated live. First demonstration of valid-vs-correct in the library.","about":"graphs/haiku_writer.json","author":"OnliestWizard"}
+
+{"ts":"2026-06-12T10:39:55.965Z","kind":"forensics","message":"bisect: first version that passes today's contract tests — 2 probes over 2 candidates.","about":"graphs/haiku_writer.json","author":"OnliestWizard"}
