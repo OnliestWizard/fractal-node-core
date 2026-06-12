@@ -1,5 +1,41 @@
 # Session State — fractal-node-core
 
+## Forensics ✓ (2026-06-12) — bisect a graph's history, no checkout
+
+Second build from the GitHub-substrate brainstorm. Deliberately NOT `git
+bisect` (which checks out the whole tree per probe — churns the working
+copy, runs old engine against old graphs): each probe reads the file as it
+was via `git show sha:path` and judges it with the CURRENT engine and (by
+default) the CURRENT contract tests — yesterday's artifact, today's
+standards. Working tree never touched. O(log n) probes.
+
+- **lib/bisect.ts** — engine-free (verdict injected, so unit tests need no
+  LLM/network): listFileCommits (only commits touching the file, oldest
+  first — the only points the verdict can change), showFileAt, sliceRange
+  (--good/--bad brackets), bisectFile (verdict cache; 'skip' steps outward
+  like `git bisect skip`; leading skips trimmed so the invariant rests on
+  evidence; honest kinds: transition / from-birth / no-transition /
+  inconclusive-with-skipped-range), makeContractVerdict (head = today's
+  tests judge history, historical = each version testifies under its own;
+  unparseable/untested versions skip, never guess).
+- **bisect.ts CLI** — `--graph graphs/skill.json [--find break|fix]
+  [--tests head|historical] [--good sha] [--bad sha] [--annotate]`.
+  `--annotate` writes the verdict into the margins on the culprit commit —
+  bisect finds the moment, notes record it. Probes on LLM-bearing skills
+  run those nodes for real (per-probe cost = one gated save).
+- **Live run, real finding**: `--find fix` on haiku_writer — both
+  path-touching versions (lychee, salak) PASS today's lineCount/maxLength
+  tests → "passing from birth": lychee fixed the BEHAVIOR, salak only
+  strengthened the contract; the 2KB-essay version predates the current
+  path (renames aren't followed, by design). lychee now carries two
+  margins — the morning's [correction] about its weak contract and the
+  bisector's [forensics] that its behavior was sound. 2 probes, <$0.01.
+- tests/bisect.test.ts (13 tests, real temp git repos, marker-content
+  verdicts): transition both directions, no-transition, from-birth,
+  skip-convergence, honest inconclusive, verdict caching (≤5 probes over
+  8 commits), contract-verdict modes. 316 tests (29 files), typecheck clean.
+- Remaining from the brainstorm: CODEOWNERS-as-constitution.
+
 ## Margins ✓ (2026-06-12) — git notes; the now comments on the then
 
 Born from a thought-train ("humanity doesn't have version control" → the

@@ -46,6 +46,7 @@ built into the substrate, not bolted on outside:
 | **Paper dashboard** | traces render to committed markdown receipts; `STATUS.md` regenerates from the library itself — GitHub is the UI, zero servers |
 | **Failure → test** | a failed run's trace auto-drafts a contract test (`draft_test`) — the library compounds lessons, not just skills |
 | **Margins** | `annotate.ts` attaches notes to past commits via `git notes` — hindsight without history rewriting; rendered to `ANNOTATIONS.md` |
+| **Forensics** | `bisect.ts` binary-searches a graph's git history for the first version failing (or passing) today's contract tests — no checkout, O(log n) probes; `--annotate` writes the verdict into the margins |
 | **Cost** | every LLM call is metered; runs print their spend and stamp it into the trace |
 
 And the fractal property: a node's subgraph is the same type as the graph it
@@ -79,6 +80,9 @@ npx tsx generate_status.ts
 
 # annotate a past commit without rewriting it (git notes; --render → ANNOTATIONS.md)
 npx tsx annotate.ts -m "this turned out to be wrong because…" --target <sha> --kind correction
+
+# find the commit where a skill started failing today's contract tests
+npx tsx bisect.ts --graph graphs/skill.json [--find fix] [--annotate]
 ```
 
 For the GitHub demos you need a **sandbox repo you own** (the demos write
