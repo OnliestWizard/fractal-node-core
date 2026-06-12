@@ -1,5 +1,42 @@
 # Session State — fractal-node-core
 
+## Margins ✓ (2026-06-12) — git notes; the now comments on the then
+
+Born from a thought-train ("humanity doesn't have version control" → the
+now overwrites the then) plus a hunt for GitHub features nobody uses for
+AI memory. `git notes` attach to existing commits AFTER the fact without
+changing their hashes — retroactive annotation with no history rewriting,
+the Talmud-margin pattern. Zero new infrastructure.
+
+- **lib/annotations.ts** — `refs/notes/plant` namespace (default notes
+  untouched). One JSON entry per line `{ts, kind, about?, author?, message}`,
+  append-only (a second note never overwrites the first); hand-written
+  plain-text notes parse as bare messages. addAnnotation / readAnnotations /
+  listAnnotated (newest commit first) / syncNotes / renderAnnotationsMarkdown.
+- **annotate.ts CLI** — `-m "..." [--target sha] [--kind correction]
+  [--about path]`, `--list`, `--render` (→ ANNOTATIONS.md), `--push/--pull`.
+  Notes do NOT travel with normal push/fetch — sharing the margins is an
+  explicit act; pull only fast-forwards (diverged notes error, never silently
+  lose a side).
+- **ANNOTATIONS.md** — the rendered surface, paper-dashboard style (GitHub
+  stopped displaying notes in its UI ~2014; the ref is the database, the
+  markdown is the view).
+- **First live margin written**: `lychee` (188881f, the commit that
+  introduced haiku_writer's weak 'exists' contract) now carries a
+  [correction] noting the 2KB-essay-as-haiku failure and pointing at the
+  salak fix — hindsight attached to a 2-day-old commit, hash unchanged.
+- tests/annotations.test.ts (11 tests, real temp git repos incl. bare-remote
+  push/pull round trip; two heavy tests carry 30s timeouts — git spawn on
+  Windows is slow). 303 tests (28 files), typecheck clean.
+- Queued from the same brainstorm (in auto-memory): bisect-over-memory
+  (context-poisoning forensics), CODEOWNERS-as-constitution. Engine builtin
+  `annotate` (graphs annotating their own past) is the natural next step —
+  the Actions pulse could then leave margins on its own deliveries.
+
+Overnight note: the Actions pulse beat twice while unattended (00:02,
+05:14 UTC) — both green, but GitHub's `*/30` cron is best-effort and
+throttles quiet repos; expect sparse beats, not 48/day.
+
 ## THE PULSE IS LIVE ON GITHUB ✓ (2026-06-11, 22:41 UTC)
 
 Keys configured (secret = PLAYGROUND_PAT_WRITE — GitHub forbids GITHUB_*

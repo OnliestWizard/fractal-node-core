@@ -45,6 +45,7 @@ built into the substrate, not bolted on outside:
 | **Replay** | any trace replays as synthetic events, at recorded pace — watch a past run without re-executing |
 | **Paper dashboard** | traces render to committed markdown receipts; `STATUS.md` regenerates from the library itself — GitHub is the UI, zero servers |
 | **Failure → test** | a failed run's trace auto-drafts a contract test (`draft_test`) — the library compounds lessons, not just skills |
+| **Margins** | `annotate.ts` attaches notes to past commits via `git notes` — hindsight without history rewriting; rendered to `ANNOTATIONS.md` |
 | **Cost** | every LLM call is metered; runs print their spend and stamp it into the trace |
 
 And the fractal property: a node's subgraph is the same type as the graph it
@@ -75,6 +76,9 @@ npx tsx render_trace.ts --trace trace.json
 
 # regenerate the library's front page (--push commits it to the sandbox repo)
 npx tsx generate_status.ts
+
+# annotate a past commit without rewriting it (git notes; --render → ANNOTATIONS.md)
+npx tsx annotate.ts -m "this turned out to be wrong because…" --target <sha> --kind correction
 ```
 
 For the GitHub demos you need a **sandbox repo you own** (the demos write
